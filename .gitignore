@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+# large feature files: attached to the GitHub release, not committed
+data/MIML-SELFVIT/voc2012.mat
+data/MIML-SELFVIT/voc2012seg.mat
+data/MIML-SELFVIT/voc2012segml.mat
+# LaTeX build artefacts
+paper_attribution/*.aux
+paper_attribution/*.log
+paper_attribution/*.out
+paper_attribution/*.spl
+paper_attribution/*.blg
+paper_attribution/*.synctex.gz
+paper_attribution/build.log

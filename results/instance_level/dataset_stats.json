@@ -1,0 +1,47 @@
+[
+  {
+    "dataset": "MSCV2",
+    "bags": 591,
+    "instances": 1758,
+    "labels": 23,
+    "features": 48,
+    "mean_instances_per_bag": 2.9746192893401013,
+    "mean_labels_per_bag": 2.5076142131979697,
+    "pct_multilabel_bags": 78.00338409475465,
+    "or_consistency": 1.0,
+    "bag_labels_without_witness": 0,
+    "witness_disjointness": 1.0,
+    "chance_p_at_1": 0.34097633136094674,
+    "label_agnostic_ceiling": 0.34097633136094674
+  },
+  {
+    "dataset": "letter_frost",
+    "bags": 144,
+    "instances": 565,
+    "labels": 26,
+    "features": 16,
+    "mean_instances_per_bag": 3.923611111111111,
+    "mean_labels_per_bag": 3.6041666666666665,
+    "pct_multilabel_bags": 91.66666666666666,
+    "or_consistency": 1.0,
+    "bag_labels_without_witness": 0,
+    "witness_disjointness": 1.0,
+    "chance_p_at_1": 0.2603550295857988,
+    "label_agnostic_ceiling": 0.2603550295857988
+  },
+  {
+    "dataset": "letter_carroll",
+    "bags": 166,
+    "instances": 717,
+    "labels": 26,
+    "features": 16,
+    "mean_instances_per_bag": 4.319277108433735,
+    "mean_labels_per_bag": 3.933734939759036,
+    "pct_multilabel_bags": 99.3975903614458,
+    "or_consistency": 1.0,
+    "bag_labels_without_witness": 0,
+    "witness_disjointness": 1.0,
+    "chance_p_at_1": 0.25306748466257667,
+    "label_agnostic_ceiling": 0.25306748466257667
+  }
+]

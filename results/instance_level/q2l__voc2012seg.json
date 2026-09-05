@@ -1,0 +1,160 @@
+{
+  "dataset": "voc2012seg",
+  "method": "q2l",
+  "kind": "baseline",
+  "num_folds": 3,
+  "ensemble_seeds": null,
+  "used_eff_attn": false,
+  "bag_metrics_mean_std": {
+    "HammingLoss": [
+      0.03480176211453745,
+      0.00235177935066769
+    ],
+    "OneError": [
+      0.1791483113069016,
+      0.03691572713649496
+    ],
+    "Coverage": [
+      1.9897209985315711,
+      0.2584851788523469
+    ],
+    "RankingLoss": [
+      0.05945288809936217,
+      0.010589833801066068
+    ],
+    "AveragePrecision": [
+      0.8454878754835224,
+      0.022146298166242733
+    ],
+    "MacroF1": [
+      0.67971909152004,
+      0.03885434807362304
+    ],
+    "MicroF1": [
+      0.7196343520699192,
+      0.024821324418684395
+    ]
+  },
+  "instance_metrics_mean_std": {
+    "InstP@1": [
+      0.6964198423968538,
+      0.009667028839421126
+    ],
+    "InstP@3": [
+      0.9243701381632415,
+      0.015041896746738387
+    ],
+    "InstMRR": [
+      0.8084097534302949,
+      0.002655347692240147
+    ],
+    "InstAUC": [
+      0.6540266391675348,
+      0.021031767181494417
+    ],
+    "ChanceP@1": [
+      0.3992088025852394,
+      0.007247945237388717
+    ],
+    "LabelAgnosticCeiling": [
+      0.9371203934422326,
+      0.007990751705820254
+    ]
+  },
+  "instance_per_model": [
+    {
+      "InstP@1": 0.7027972027972028,
+      "InstP@3": 0.9090909090909091,
+      "InstMRR": 0.8056986331461855,
+      "InstAUC": 0.6248195841891209,
+      "ChanceP@1": 0.4005681818181818,
+      "LabelAgnosticCeiling": 0.9440559440559441,
+      "_used_eff_attn": false,
+      "fold": 0,
+      "seed": null
+    },
+    {
+      "InstP@1": 0.6827586206896552,
+      "InstP@3": 0.9448275862068966,
+      "InstMRR": 0.8075150519978106,
+      "InstAUC": 0.6734998484513571,
+      "ChanceP@1": 0.4073275862068966,
+      "LabelAgnosticCeiling": 0.9413793103448276,
+      "_used_eff_attn": false,
+      "fold": 1,
+      "seed": null
+    },
+    {
+      "InstP@1": 0.7037037037037037,
+      "InstP@3": 0.9191919191919192,
+      "InstMRR": 0.8120155751468883,
+      "InstAUC": 0.6637604848621264,
+      "ChanceP@1": 0.3897306397306397,
+      "LabelAgnosticCeiling": 0.9259259259259259,
+      "_used_eff_attn": false,
+      "fold": 2,
+      "seed": null
+    }
+  ],
+  "config": {
+    "embed_dim": 128,
+    "nhead": 4,
+    "ff_dim": 256,
+    "transformer_layers": 1,
+    "attn_dim": 64,
+    "k_sample": 2,
+    "embedding_layers": 2,
+    "use_transformer": true,
+    "use_correlation": false,
+    "use_instance_clustering": false,
+    "use_gated_attention": true,
+    "batch_size": 4,
+    "weight_decay": 0.0005,
+    "gradient_clip": 1.0,
+    "phase1_epochs": 80,
+    "phase1_lr": 0.001,
+    "phase2_max_epochs": 120,
+    "phase2_lr": 0.0003,
+    "early_stop_patience": 25,
+    "bag_weight": 0.9,
+    "inst_weight": 0.05,
+    "swa_start": 30,
+    "label_smoothing": 0.05,
+    "dropout": 0.15,
+    "use_threshold_opt": true,
+    "use_asymmetric_loss": false,
+    "asl_gamma_neg": 2,
+    "asl_gamma_pos": 0,
+    "asl_clip": 0.02,
+    "use_mixup": false,
+    "mixup_alpha": 0.2,
+    "use_two_way_loss": false,
+    "twl_margin": 0.05,
+    "twl_lam_rel": 0.5,
+    "use_psemix": false,
+    "psemix_K": 4,
+    "psemix_share_label_bias": 0.7,
+    "use_contrastive": false,
+    "contrastive_dim": 128,
+    "contrastive_tau": 0.1,
+    "lam_con": 0.05,
+    "lam_con_warmup": 20,
+    "use_anchor": false,
+    "anchor_dim": 32,
+    "lam_anchor": 0.3,
+    "lam_anchor_warmup": 10,
+    "use_hap": false,
+    "hap_topk": 3,
+    "data_path": "/Users/umaidahmed/Desktop/Research/Research_Writer/ML_Papers/VIT_MIL/Code/MIML-SELFVIT/voc2012seg.mat",
+    "cv_mat_path": "/Users/umaidahmed/Desktop/Research/Research_Writer/ML_Papers/VIT_MIL/Code/MIML-SELFVIT/voc2012seg_10CV.mat",
+    "bag_key": "bags",
+    "label_key": "labels",
+    "dataset": "voc2012seg",
+    "dataset_format": "standard",
+    "fixed_bag_size": true,
+    "default_folds": 10,
+    "input_dim": 2048,
+    "num_labels": 20
+  },
+  "wall_clock_seconds": 2343.562604188919
+}

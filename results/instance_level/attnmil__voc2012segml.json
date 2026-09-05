@@ -1,0 +1,160 @@
+{
+  "dataset": "voc2012segml",
+  "method": "attnmil",
+  "kind": "baseline",
+  "num_folds": 3,
+  "ensemble_seeds": null,
+  "used_eff_attn": false,
+  "bag_metrics_mean_std": {
+    "HammingLoss": [
+      0.06717171717171717,
+      0.014378425096451274
+    ],
+    "OneError": [
+      0.11616161616161617,
+      0.035712463696290275
+    ],
+    "Coverage": [
+      3.464646464646465,
+      0.6914951144563557
+    ],
+    "RankingLoss": [
+      0.06239581270218525,
+      0.021195465345412227
+    ],
+    "AveragePrecision": [
+      0.832463421272761,
+      0.040411827636690545
+    ],
+    "MacroF1": [
+      0.5215994630602694,
+      0.08127037542508625
+    ],
+    "MicroF1": [
+      0.6950827732452369,
+      0.05136290280268593
+    ]
+  },
+  "instance_metrics_mean_std": {
+    "InstP@1": [
+      0.47372455236693645,
+      0.03739874675563464
+    ],
+    "InstP@3": [
+      0.7381806475349523,
+      0.031637235719949905
+    ],
+    "InstMRR": [
+      0.6312554219373342,
+      0.029754119537276504
+    ],
+    "InstAUC": [
+      0.5899013417140544,
+      0.019645696619347282
+    ],
+    "ChanceP@1": [
+      0.3408651045499141,
+      0.016600889027060327
+    ],
+    "LabelAgnosticCeiling": [
+      0.8658327201373558,
+      0.019563930932165085
+    ]
+  },
+  "instance_per_model": [
+    {
+      "InstP@1": 0.5138888888888888,
+      "InstP@3": 0.7708333333333334,
+      "InstMRR": 0.6606252254689754,
+      "InstAUC": 0.6153291321911113,
+      "ChanceP@1": 0.3624131944444444,
+      "LabelAgnosticCeiling": 0.8888888888888888,
+      "_used_eff_attn": false,
+      "fold": 0,
+      "seed": null
+    },
+    {
+      "InstP@1": 0.48344370860927155,
+      "InstP@3": 0.7483443708609272,
+      "InstMRR": 0.6426669265245424,
+      "InstAUC": 0.5868828421394647,
+      "ChanceP@1": 0.3220198675496689,
+      "LabelAgnosticCeiling": 0.8675496688741722,
+      "_used_eff_attn": false,
+      "fold": 1,
+      "seed": null
+    },
+    {
+      "InstP@1": 0.423841059602649,
+      "InstP@3": 0.695364238410596,
+      "InstMRR": 0.5904741138184847,
+      "InstAUC": 0.5674920508115873,
+      "ChanceP@1": 0.33816225165562913,
+      "LabelAgnosticCeiling": 0.8410596026490066,
+      "_used_eff_attn": false,
+      "fold": 2,
+      "seed": null
+    }
+  ],
+  "config": {
+    "embed_dim": 128,
+    "nhead": 4,
+    "ff_dim": 256,
+    "transformer_layers": 1,
+    "attn_dim": 64,
+    "k_sample": 2,
+    "embedding_layers": 2,
+    "use_transformer": true,
+    "use_correlation": false,
+    "use_instance_clustering": false,
+    "use_gated_attention": true,
+    "batch_size": 4,
+    "weight_decay": 0.0005,
+    "gradient_clip": 1.0,
+    "phase1_epochs": 80,
+    "phase1_lr": 0.001,
+    "phase2_max_epochs": 120,
+    "phase2_lr": 0.0003,
+    "early_stop_patience": 25,
+    "bag_weight": 0.9,
+    "inst_weight": 0.05,
+    "swa_start": 30,
+    "label_smoothing": 0.05,
+    "dropout": 0.15,
+    "use_threshold_opt": true,
+    "use_asymmetric_loss": false,
+    "asl_gamma_neg": 2,
+    "asl_gamma_pos": 0,
+    "asl_clip": 0.02,
+    "use_mixup": false,
+    "mixup_alpha": 0.2,
+    "use_two_way_loss": false,
+    "twl_margin": 0.05,
+    "twl_lam_rel": 0.5,
+    "use_psemix": false,
+    "psemix_K": 4,
+    "psemix_share_label_bias": 0.7,
+    "use_contrastive": false,
+    "contrastive_dim": 128,
+    "contrastive_tau": 0.1,
+    "lam_con": 0.05,
+    "lam_con_warmup": 20,
+    "use_anchor": false,
+    "anchor_dim": 32,
+    "lam_anchor": 0.3,
+    "lam_anchor_warmup": 10,
+    "use_hap": false,
+    "hap_topk": 3,
+    "data_path": "/Users/umaidahmed/Desktop/Research/Research_Writer/ML_Papers/VIT_MIL/Code/MIML-SELFVIT/voc2012segml.mat",
+    "cv_mat_path": "/Users/umaidahmed/Desktop/Research/Research_Writer/ML_Papers/VIT_MIL/Code/MIML-SELFVIT/voc2012segml_10CV.mat",
+    "bag_key": "bags",
+    "label_key": "labels",
+    "dataset": "voc2012segml",
+    "dataset_format": "standard",
+    "fixed_bag_size": true,
+    "default_folds": 10,
+    "input_dim": 2048,
+    "num_labels": 20
+  },
+  "wall_clock_seconds": 487.10060381889343
+}

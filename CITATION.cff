@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this code or the VOC-Patch benchmark, please cite the paper."
+title: "Do Attention-Based Multi-Instance Multi-Label Models Know Where Their Labels Are? An Attribution Protocol, a Ceiling Theorem, and a Pixel-Exact Benchmark"
+authors:
+  - family-names: Ahmed
+    given-names: Syed Umaid
+    affiliation: FAST-NUCES, Karachi
+  - family-names: Tahir
+    given-names: Muhammad Atif
+    affiliation: IBA Karachi
+  - family-names: Waqas
+    given-names: Muhammad
+    affiliation: MD Anderson Cancer Center
+year: 2026

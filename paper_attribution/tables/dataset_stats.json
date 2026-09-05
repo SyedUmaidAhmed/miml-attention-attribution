@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Letter Frost",
+    "bags": 144,
+    "instances": 565,
+    "labels": 26,
+    "dim": 16,
+    "inst_per_bag": 3.923611111111111,
+    "labels_per_bag": 3.6041666666666665,
+    "multi": 91.66666666666666,
+    "witness_frac": 100.0,
+    "uncovered": 0,
+    "bag_labels": 519,
+    "folds": 5
+  },
+  {
+    "name": "Letter Carroll",
+    "bags": 166,
+    "instances": 717,
+    "labels": 26,
+    "dim": 16,
+    "inst_per_bag": 4.319277108433735,
+    "labels_per_bag": 3.933734939759036,
+    "multi": 99.3975903614458,
+    "witness_frac": 100.0,
+    "uncovered": 0,
+    "bag_labels": 653,
+    "folds": 5
+  },
+  {
+    "name": "MSRC~v2",
+    "bags": 591,
+    "instances": 1758,
+    "labels": 23,
+    "dim": 48,
+    "inst_per_bag": 2.9746192893401013,
+    "labels_per_bag": 2.5076142131979697,
+    "multi": 78.00338409475465,
+    "witness_frac": 100.0,
+    "uncovered": 0,
+    "bag_labels": 1482,
+    "folds": 5
+  },
+  {
+    "name": "VOC-Patch-Seg",
+    "bags": 2273,
+    "instances": 36368,
+    "labels": 20,
+    "dim": 2048,
+    "inst_per_bag": 16.0,
+    "labels_per_bag": 1.361636603607567,
+    "multi": 27.84865816102068,
+    "witness_frac": 51.02012758468983,
+    "uncovered": 103,
+    "bag_labels": 3095,
+    "folds": 3
+  },
+  {
+    "name": "VOC-Patch-Seg-ML",
+    "bags": 660,
+    "instances": 10560,
+    "labels": 20,
+    "dim": 2048,
+    "inst_per_bag": 16.0,
+    "labels_per_bag": 2.286363636363636,
+    "multi": 100.0,
+    "witness_frac": 62.30113636363637,
+    "uncovered": 0,
+    "bag_labels": 1509,
+    "folds": 3
+  }
+]
