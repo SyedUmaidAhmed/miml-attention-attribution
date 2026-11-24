@@ -40,6 +40,8 @@ __all__ = [
     'instance_precision_at_k',
     'instance_mrr',
     'instance_auc',
+    'instance_auc_pooled',
+    'label_agnostic_auc_bounds',
     'chance_precision_at_1',
     'label_agnostic_ceiling',
     'witness_disjointness',
@@ -162,39 +164,96 @@ def instance_mrr(attn, inst_labels, bag_labels, mask=None):
     return float(rr[pairs].mean())
 
 
-def instance_auc(attn, inst_labels, bag_labels, mask=None):
-    """Mean per-(bag, label) AUC of separating witnesses from non-witnesses.
+def _per_pair_auc(attn, inst_labels, bag_labels, mask=None):
+    """(auc, n_pos, n_neg) for every scorable (bag, label) pair.
 
-    Computed via the rank-sum (Mann-Whitney) identity, with ties averaged, so
-    a uniform attention distribution scores exactly 0.5.
+    Rank-sum (Mann-Whitney) identity with tie averaging, so a uniform
+    attention distribution scores exactly 0.5 per pair.
     """
     attn, inst_labels, bag_labels, valid = _prepare(
         attn, inst_labels, bag_labels, mask)
     pairs = _scorable_pairs(inst_labels, bag_labels, valid)
-    if not pairs.any():
-        return float('nan')
-
     wit = np.transpose(inst_labels, (0, 2, 1))                # (B, L, N)
-    aucs = []
+    out = []
     bs, ls = np.nonzero(pairs)
     for b, l in zip(bs, ls):
         v = valid[b]
         s = attn[b, l][v]
         y = wit[b, l][v]
-        pos, neg = s[y], s[~y]
+        n_pos, n_neg = int(y.sum()), int((~y).sum())
         # rankdata with tie averaging, without a scipy dependency
         order = np.argsort(s, kind='mergesort')
         ranks = np.empty(len(s), dtype=np.float64)
         ranks[order] = np.arange(1, len(s) + 1)
-        # average ranks within tie groups
         uniq, inv, cnt = np.unique(s, return_inverse=True, return_counts=True)
         sums = np.zeros(len(uniq))
         np.add.at(sums, inv, ranks)
         ranks = (sums / cnt)[inv]
-        auc = (ranks[y].sum() - len(pos) * (len(pos) + 1) / 2.0) / (
-            len(pos) * len(neg))
-        aucs.append(auc)
-    return float(np.mean(aucs))
+        auc = (ranks[y].sum() - n_pos * (n_pos + 1) / 2.0) / (n_pos * n_neg)
+        out.append((auc, n_pos, n_neg))
+    return out
+
+
+def instance_auc(attn, inst_labels, bag_labels, mask=None):
+    """Mean per-(bag, label) AUC of separating witnesses from non-witnesses
+    (macro average over scorable pairs)."""
+    rows = _per_pair_auc(attn, inst_labels, bag_labels, mask)
+    if not rows:
+        return float('nan')
+    return float(np.mean([r[0] for r in rows]))
+
+
+def instance_auc_pooled(attn, inst_labels, bag_labels, mask=None):
+    """AUC pooled over all witness/non-witness instance pairs (micro average).
+
+    Every (witness, non-witness) pair of every scorable (bag, label) counts
+    once. Under a witness partition, any ranking shared across labels scores
+    exactly 0.5: each cross-witness pair is counted once in each direction
+    (DMKD revision, reviewer 1 point 2).
+    """
+    rows = _per_pair_auc(attn, inst_labels, bag_labels, mask)
+    if not rows:
+        return float('nan')
+    num = sum(a * p * n for a, p, n in rows)
+    den = sum(p * n for _, p, n in rows)
+    return float(num / den)
+
+
+def label_agnostic_auc_bounds(inst_labels, bag_labels, mask=None):
+    """(lower, upper) on the pooled AUC of ANY label-agnostic ranking.
+
+    For an unordered instance pair {j, k} of bag i, let c_jk be the number of
+    scorable labels l with j in W_i(l) and k not in W_i(l). A ranking shared
+    across labels orders the pair one way, so the pair contributes c_jk or
+    c_kj (half their sum on a tie) of its c_jk + c_kj witness/non-witness
+    comparisons. Hence
+        sum min(c_jk, c_kj) / T  <=  pooled AUC  <=  sum max(c_jk, c_kj) / T,
+    T = sum (c_jk + c_kj) = the number of pooled comparisons. The upper bound
+    ignores transitivity, so it is loose but valid. Under a witness partition
+    c_jk = c_kj for every pair and both bounds equal 1/2.
+    """
+    B, N, L = _to_numpy(inst_labels).shape
+    dummy = np.zeros((B, L, N))
+    _, inst_labels, bag_labels, valid = _prepare(
+        dummy, inst_labels, bag_labels, mask)
+    pairs = _scorable_pairs(inst_labels, bag_labels, valid)
+    lo = hi = tot = 0.0
+    for i in range(B):
+        ls = np.nonzero(pairs[i])[0]
+        if len(ls) == 0:
+            continue
+        v = np.nonzero(valid[i])[0]
+        W = inst_labels[i][np.ix_(v, ls)].astype(np.int64)     # (n, m)
+        # c[j, k] = #labels with j witness and k non-witness
+        c = W @ (1 - W).T
+        iu = np.triu_indices(len(v), 1)
+        a, b = c[iu], c.T[iu]
+        lo += np.minimum(a, b).sum()
+        hi += np.maximum(a, b).sum()
+        tot += (a + b).sum()
+    if tot == 0:
+        return float('nan'), float('nan')
+    return float(lo / tot), float(hi / tot)
 
 
 def chance_precision_at_1(inst_labels, bag_labels, mask=None):
@@ -300,6 +359,8 @@ def all_instance_metrics(attn, inst_labels, bag_labels, mask=None,
             attn, inst_labels, bag_labels, mask=mask, k=k)
     out['InstMRR'] = instance_mrr(attn, inst_labels, bag_labels, mask=mask)
     out['InstAUC'] = instance_auc(attn, inst_labels, bag_labels, mask=mask)
+    out['InstAUCPooled'] = instance_auc_pooled(
+        attn, inst_labels, bag_labels, mask=mask)
     out['ChanceP@1'] = chance_precision_at_1(inst_labels, bag_labels, mask=mask)
     out['LabelAgnosticCeiling'] = label_agnostic_ceiling(
         inst_labels, bag_labels, mask=mask)

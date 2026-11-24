@@ -69,6 +69,7 @@ from baselines.dsmil import DSMIL                                        # noqa:
 from baselines.transmil_lite import TransMILLite                         # noqa: E402
 from baselines.ml_decoder import MLDecoder                                # noqa: E402
 from baselines.q2l import Q2L                                            # noqa: E402
+from baselines.dsmil_orig import DSMILOriginal                          # noqa: E402
 
 
 # ----------------------------------------------------------------------
@@ -105,6 +106,16 @@ def _make_dsmil(cfg, device):
         dropout=cfg['dropout'],
         embedding_layers=cfg.get('embedding_layers', 2),
         attn_dim=cfg.get('attn_dim', cfg['embed_dim'] // 2),
+    ).to(device)
+
+
+def _make_dsmil_orig(cfg, device):
+    return DSMILOriginal(
+        input_dim=cfg['input_dim'],
+        num_labels=cfg['num_labels'],
+        embed_dim=cfg['embed_dim'],
+        dropout=cfg['dropout'],
+        embedding_layers=cfg.get('embedding_layers', 2),
     ).to(device)
 
 
@@ -150,6 +161,7 @@ MODEL_FACTORIES = {
     'attnmil':       _make_attnmil,
     'gated_attn':    _make_gated_attn,
     'dsmil':         _make_dsmil,
+    'dsmil_orig':    _make_dsmil_orig,
     'transmil_lite': _make_transmil_lite,
     'ml_decoder':    _make_ml_decoder,
     'q2l':           _make_q2l,

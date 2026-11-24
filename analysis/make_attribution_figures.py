@@ -23,11 +23,13 @@ import sys
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import analysis.make_attribution_tables as T          # noqa: E402
 from analysis.make_attribution_tables import (      # noqa: E402
     DS_DISPLAY, DS_ORDER, KEY_FOR_DISPLAY, LABEL_AGNOSTIC, ORDER,
     load_cells, regime_table)
@@ -36,19 +38,36 @@ from analysis.make_attribution_tables import (      # noqa: E402
 PLAIN = {
     'attnmil': 'AB-MIL', 'gated_attn': 'Gated AB-MIL', 'transmil_lite': 'TransMIL',
     'dsmil': 'DSMIL', 'ml_decoder': 'ML-Decoder', 'q2l': 'Q2L', 'hap_only': 'HAP',
+    'dsmil_orig': 'DSMIL',
 }
 # Okabe-Ito, colourblind-safe. Label-agnostic methods take the blue-green end,
 # label-conditional the warm end, so the two families read apart in greyscale too.
 COLOR = {
     'attnmil': '#0072B2', 'gated_attn': '#56B4E9', 'transmil_lite': '#009E73',
     'dsmil': '#D55E00', 'ml_decoder': '#000000', 'q2l': '#CC79A7',
-    'hap_only': '#E69F00',
+    'hap_only': '#E69F00', 'dsmil_orig': '#D55E00',
 }
 DS_PLAIN = {k: v.replace('~', ' ') for k, v in DS_DISPLAY.items()}
 MARKER = {
     'attnmil': 's', 'gated_attn': '^', 'transmil_lite': 'D',
-    'dsmil': 'o', 'ml_decoder': 'o', 'q2l': 'o', 'hap_only': 'o',
+    'dsmil': 'v', 'ml_decoder': 'o', 'q2l': 'P', 'hap_only': '*',
+    'dsmil_orig': 'v',
 }
+
+
+def use_r1():
+    """DMKD revision: r1 results; DSMIL = official form, DSMIL-sep = v1 variant."""
+    global DS_DISPLAY, DS_ORDER, KEY_FOR_DISPLAY, ORDER, DS_PLAIN
+    T.REV = 'r1'
+    T.RESULTS = 'results/instance_level_r1'
+    T.DISPLAY, T.ORDER = T.R1_DISPLAY, T.R1_ORDER
+    T.DS_ORDER, T.DS_DISPLAY = T.R1_DS_ORDER, T.R1_DS_DISPLAY
+    DS_DISPLAY, DS_ORDER, ORDER = T.R1_DS_DISPLAY, T.R1_DS_ORDER, T.R1_ORDER
+    KEY_FOR_DISPLAY = T.R1_KEY_FOR_DISPLAY
+    DS_PLAIN = {k: v.replace('~', ' ') for k, v in DS_DISPLAY.items()}
+    PLAIN['dsmil'] = 'DSMIL-sep'
+    COLOR['dsmil'] = '#882255'
+    MARKER['dsmil'] = 'X'
 
 plt.rcParams.update({
     'font.family': 'serif',
@@ -74,7 +93,7 @@ def collect(cells):
                 continue
             im = d['instance_metrics_mean_std']
             methods[m] = {
-                'ap': d['bag_metrics_mean_std']['AveragePrecision'][0],
+                'ap': T.bag_ap(d),
                 'p1': im['InstP@1'][0], 'p1_sd': im['InstP@1'][1],
                 'auc': im['InstAUC'][0], 'chance': im['ChanceP@1'][0],
             }
@@ -102,10 +121,12 @@ def fig_ceiling(data, geom, path):
     opens and the same three architectures spread out inside it.
     """
     datasets = [d for d in DS_ORDER if d in data]
-    fig, ax = plt.subplots(figsize=(6.5, 0.72 * len(datasets) + 1.35))
+    # Drawn at about the sn-jnl text width so it is placed near 1:1.
+    fig, ax = plt.subplots(figsize=(5.4, 0.62 * len(datasets) + 1.6))
 
     lane_h = 1.0
-    offsets = {m: (i - 3) * 0.105 for i, m in enumerate(ORDER)}
+    sp = 0.105 if len(ORDER) == 7 else 0.09
+    offsets = {m: (i - (len(ORDER) - 1) / 2) * sp for i, m in enumerate(ORDER)}
 
     for row, ds in enumerate(datasets):
         y = len(datasets) - 1 - row
@@ -132,11 +153,14 @@ def fig_ceiling(data, geom, path):
                         linestyle='none', zorder=4)
 
         head = 100 * g['headroom']
-        ax.text(101.5, y, f'headroom {head:+.1f} pts', va='center', ha='left',
-                fontsize=6.6, color='#555555')
+        ax.text(101.5, y, f'{head:+.1f}', va='center', ha='left',
+                fontsize=7.5, color='#333333')
 
     ax.set_yticks(range(len(datasets)))
-    ax.set_yticklabels([DS_PLAIN[d] for d in reversed(datasets)], fontsize=7.5)
+    ax.set_yticklabels([DS_PLAIN[d] for d in reversed(datasets)], fontsize=8)
+    ax.text(101.5, len(datasets) - 0.45, 'headroom\n(pts)', va='bottom',
+            ha='left', fontsize=7.5, color='#333333')
+    ax.tick_params(axis='x', labelsize=8)
     ax.set_ylim(-0.55, len(datasets) - 0.45)
     ax.set_xlim(0, 100)
     ax.set_xlabel('instance-attribution precision@1 (%)', fontsize=8)
@@ -147,11 +171,11 @@ def fig_ceiling(data, geom, path):
                   label='chance'),
            Line2D([], [], color='#009E73', linewidth=1.6, label='ceiling $\\Gamma$'),
            Patch(facecolor='#009E73', alpha=0.13, label='headroom')]
-    fig.legend(handles=ag + co + ref, loc='lower center', ncol=5,
-               frameon=False, fontsize=7, handletextpad=0.5,
-               columnspacing=1.4, bbox_to_anchor=(0.5, -0.015))
+    fig.legend(handles=ag + co + ref, loc='lower center', ncol=3,
+               frameon=False, fontsize=7.5, handletextpad=0.5,
+               columnspacing=1.2, bbox_to_anchor=(0.5, -0.02))
 
-    fig.subplots_adjust(left=0.17, right=0.83, top=0.97, bottom=0.14)
+    fig.subplots_adjust(left=0.22, right=0.88, top=0.93, bottom=0.30)
     fig.savefig(path, bbox_inches='tight')
     plt.close(fig)
 
@@ -163,9 +187,12 @@ def fig_slopes(data, geom, path):
     two spans printed under each panel is the magnification quoted in the text.
     """
     datasets = [d for d in DS_ORDER if d in data]
-    fig, axes = plt.subplots(1, len(datasets), figsize=(6.9, 2.75))
-    if len(datasets) == 1:
-        axes = [axes]
+    ncol = 3 if len(datasets) > 3 else len(datasets)
+    nrow = -(-len(datasets) // ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(5.4, 2.55 * nrow + 0.5))
+    axes = list(np.atleast_1d(axes).ravel())
+    for extra in axes[len(datasets):]:
+        extra.set_visible(False)
 
     stats = {}
     for ax, ds in zip(axes, datasets):
@@ -195,25 +222,25 @@ def fig_slopes(data, geom, path):
                         markersize=4.0, markeredgewidth=1.0,
                         markerfacecolor='none' if agn else COLOR[m], zorder=3)
 
-        ax.set_title(DS_PLAIN[ds], fontsize=7.5, pad=22)
+        ax.set_title(DS_PLAIN[ds], fontsize=8, pad=24)
         ax.text(0, 1.115, 'bag AP', transform=ax.transAxes, ha='left',
-                fontsize=6.6, color='#555555')
+                fontsize=7.5, color='#333333')
         ax.text(1, 1.115, 'P@1', transform=ax.transAxes, ha='right',
-                fontsize=6.6, color='#555555')
+                fontsize=7.5, color='#333333')
         ax.text(0, -0.055, f'{alo:.3f}', transform=ax.transAxes, ha='left',
-                va='top', fontsize=6.2, color='#777777')
+                va='top', fontsize=7, color='#444444')
         ax.text(0, 1.0, f'{ahi:.3f}', transform=ax.transAxes, ha='left',
-                va='bottom', fontsize=6.2, color='#777777')
+                va='bottom', fontsize=7, color='#444444')
         ax.text(1, -0.055, f'{100*plo:.1f}', transform=ax.transAxes, ha='right',
-                va='top', fontsize=6.2, color='#777777')
+                va='top', fontsize=7, color='#444444')
         ax.text(1, 1.0, f'{100*phi:.1f}', transform=ax.transAxes, ha='right',
-                va='bottom', fontsize=6.2, color='#777777')
+                va='bottom', fontsize=7, color='#444444')
         mag = stats[ds][2]
-        ax.text(0.5, -0.17, '%.1f $\\rightarrow$ %.1f pts%s'
+        ax.text(0.5, -0.26, '%.1f $\\rightarrow$ %.1f pts%s'
                 % (span_ap, span_p1,
                    '' if mag is None else '  ($\\times$%.1f)' % mag),
-                transform=ax.transAxes, ha='center', fontsize=6.4,
-                color='#333333')
+                transform=ax.transAxes, ha='center', fontsize=7.5,
+                color='#222222')
 
         ax.set_xlim(-0.22, 1.22)
         ax.set_ylim(-0.08, 1.08)
@@ -226,9 +253,10 @@ def fig_slopes(data, geom, path):
         ax.axvline(1, color='#bbbbbb', linewidth=0.6, zorder=1)
 
     ag, co = legend_handles()
-    fig.legend(handles=ag + co, loc='lower center', ncol=7, frameon=False,
-               fontsize=7, bbox_to_anchor=(0.5, -0.03))
-    fig.subplots_adjust(left=0.03, right=0.97, top=0.84, bottom=0.24, wspace=0.45)
+    fig.legend(handles=ag + co, loc='lower center', ncol=4, frameon=False,
+               fontsize=7.5, bbox_to_anchor=(0.5, -0.04))
+    fig.subplots_adjust(left=0.04, right=0.96, top=0.90, bottom=0.17,
+                        wspace=0.55, hspace=0.75)
     fig.savefig(path, bbox_inches='tight')
     plt.close(fig)
     return stats
@@ -237,7 +265,10 @@ def fig_slopes(data, geom, path):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--outdir', default='paper_attribution/figures')
+    p.add_argument('--rev', default='v1', choices=['v1', 'r1'])
     args = p.parse_args()
+    if args.rev == 'r1':
+        use_r1()
     os.makedirs(args.outdir, exist_ok=True)
 
     cells = load_cells()

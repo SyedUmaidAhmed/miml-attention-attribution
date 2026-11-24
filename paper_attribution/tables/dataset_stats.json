@@ -42,6 +42,20 @@
     "folds": 5
   },
   {
+    "name": "Bird Song",
+    "bags": 548,
+    "instances": 10232,
+    "labels": 13,
+    "dim": 38,
+    "inst_per_bag": 18.67153284671533,
+    "labels_per_bag": 2.021897810218978,
+    "multi": 63.68613138686131,
+    "witness_frac": 48.8467552775606,
+    "uncovered": 0,
+    "bag_labels": 1108,
+    "folds": 5
+  },
+  {
     "name": "VOC-Patch-Seg",
     "bags": 2273,
     "instances": 36368,
@@ -53,7 +67,7 @@
     "witness_frac": 51.02012758468983,
     "uncovered": 103,
     "bag_labels": 3095,
-    "folds": 3
+    "folds": 10
   },
   {
     "name": "VOC-Patch-Seg-ML",
@@ -67,6 +81,6 @@
     "witness_frac": 62.30113636363637,
     "uncovered": 0,
     "bag_labels": 1509,
-    "folds": 3
+    "folds": 10
   }
 ]

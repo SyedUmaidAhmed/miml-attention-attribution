@@ -51,18 +51,38 @@ COLOR = {
 }
 MARKER = {
     'attnmil': 's', 'gated_attn': '^', 'transmil_lite': 'D',
-    'dsmil': 'o', 'ml_decoder': 'o', 'q2l': 'o', 'hap_only': 'o',
+    'dsmil': 'v', 'ml_decoder': 'o', 'q2l': 'P', 'hap_only': '*',
 }
-DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2',
+DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2', 'hja_birdsong',
             'voc2012seg', 'voc2012segml']
 DS_PLAIN = {'letter_frost': 'Letter Frost', 'letter_carroll': 'Letter Carroll',
-            'mscv2': 'MSRC v2', 'voc2012seg': 'VOC-Patch-Seg',
+            'mscv2': 'MSRC v2', 'hja_birdsong': 'Bird Song',
+            'voc2012seg': 'VOC-Patch-Seg',
             'voc2012segml': 'VOC-Patch-Seg-ML'}
 KEY_FOR_DISPLAY = {'MSRC~v2': 'mscv2', 'Letter Frost': 'letter_frost',
                    'Letter Carroll': 'letter_carroll',
+                   'Bird Song': 'hja_birdsong',
                    'VOC-Patch-Seg': 'voc2012seg',
                    'VOC-Patch-Seg-ML': 'voc2012segml'}
 PARTITIONED = ['letter_frost', 'letter_carroll', 'mscv2']
+VOC_SEG = 'voc2012seg'
+
+
+def use_r1():
+    """DMKD revision: r1 results, 8 architectures, no-crop VOC."""
+    global RESULTS, ORDER, DS_ORDER, DS_PLAIN, KEY_FOR_DISPLAY, VOC_SEG
+    RESULTS = os.path.join(REPO, 'results', 'instance_level_r1')
+    ORDER = ['attnmil', 'gated_attn', 'transmil_lite', 'dsmil_orig', 'dsmil',
+             'ml_decoder', 'q2l', 'hap_only']
+    PLAIN.update(dsmil_orig='DSMIL', dsmil='DSMIL-sep')
+    COLOR.update(dsmil_orig='#D55E00', dsmil='#882255')
+    MARKER.update(dsmil_orig='v', dsmil='X')
+    DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2', 'hja_birdsong',
+                'voc2012seg_nc', 'voc2012segml_nc']
+    DS_PLAIN.update(voc2012seg_nc='VOC-Patch-Seg', voc2012segml_nc='VOC-Patch-Seg-ML')
+    KEY_FOR_DISPLAY = dict(KEY_FOR_DISPLAY, **{'VOC-Patch-Seg': 'voc2012seg_nc',
+                                               'VOC-Patch-Seg-ML': 'voc2012segml_nc'})
+    VOC_SEG = 'voc2012seg_nc'
 
 GREEN = '#009E73'   # ceiling / headroom, as in ceiling_vs_achieved.pdf
 INK = '#111111'
@@ -105,7 +125,8 @@ def load():
             methods[m] = {'p1': im['InstP@1'][0], 'p1_sd': im['InstP@1'][1],
                           'chance': im['ChanceP@1'][0],
                           'n_models': len(d.get('instance_per_model', []))}
-        data[ds] = methods
+        if methods:
+            data[ds] = methods
 
     # Re-verify the hard-coded annotations before printing them on a figure.
     n_agn = sum(data[ds][m]['n_models'] for ds in PARTITIONED
@@ -116,7 +137,7 @@ def load():
     best_delta = max(100 * (data[ds][m]['p1'] - data[ds][m]['chance'])
                      for ds in PARTITIONED for m in data[ds]
                      if m not in LABEL_AGNOSTIC)
-    voc = geom['voc2012seg']
+    voc = geom[VOC_SEG]
     if (n_agn != 315 or max_dev > 6e-17 or abs(best_delta - 37.5) > 0.05
             or abs(100 * voc['chance'] - 40.4) > 0.05
             or abs(100 * voc['ceiling'] - 93.2) > 0.05):
@@ -139,7 +160,7 @@ def blank(ax):
         s.set_visible(False)
 
 
-def panel_tag(ax, tag, title, fs=7.2):
+def panel_tag(ax, tag, title, fs=8.0):
     ax.text(0.0, 1.045, '$\\mathbf{(%s)}$ %s' % (tag, title),
             transform=ax.transAxes, fontsize=fs, va='bottom', ha='left')
 
@@ -166,7 +187,7 @@ def panel_bag(ax):
                                 facecolor='#fafafa', edgecolor='#888888',
                                 linewidth=0.8))
     ax.text(0.09, 0.845, 'bag $B_i$,  labels $Y_i=\\{l_1,l_2\\}$',
-            fontsize=6.8, ha='left', va='center')
+            fontsize=7.8, ha='left', va='center')
 
     groups = [   # (positions, facecolor, edgecolor, label under the group)
         ([(0.185, 0.62), (0.255, 0.37)], '#404040', '#404040',
@@ -180,10 +201,10 @@ def panel_bag(ax):
         xs, ys = zip(*pts)
         ax.scatter(xs, ys, s=100, facecolor=fc, edgecolor=ec,
                    linewidth=0.9, zorder=4)
-        ax.text(sum(xs) / 2, 0.095, lab, fontsize=6.1, ha='center',
+        ax.text(sum(xs) / 2, 0.095, lab, fontsize=7.0, ha='center',
                 va='center', color=tc)
     ax.text(0.5, -0.075, 'which instance carries which label?',
-            fontsize=6.4, ha='center', va='center', color=GRAY,
+            fontsize=7.4, ha='center', va='center', color=GRAY,
             style='italic')
 
 
@@ -198,38 +219,38 @@ def panel_arch(ax):
     v2 = [0.18, 0.25, 0.22, 1.0, 0.35]
 
     # -- label-agnostic (top half)
-    ax.text(0.02, 0.955, 'label-agnostic', fontsize=7, fontweight='bold',
+    ax.text(0.02, 0.955, 'label-agnostic', fontsize=8.0, fontweight='bold',
             va='center')
-    ax.text(0.02, 0.885, 'AB-MIL, Gated, TransMIL', fontsize=6.0,
+    ax.text(0.02, 0.885, 'AB-MIL, Gated, TransMIL', fontsize=6.9,
             color=GRAY, va='center')
     attn_bars(ax, 0.06, 0.64, 0.32, 0.17, va, hot=1)
-    ax.text(0.22, 0.578, '$a_i(\\cdot)$ — one map', fontsize=6.4,
+    ax.text(0.22, 0.578, '$a_i(\\cdot)$ — one map', fontsize=7.4,
             ha='center', va='center')
     for ytxt in (0.82, 0.72, 0.62):
         ax.add_patch(FancyArrowPatch((0.42, 0.71), (0.60, ytxt),
                                      arrowstyle='-|>', mutation_scale=6,
                                      color='#777777', lw=0.7,
                                      shrinkA=0, shrinkB=1))
-    ax.text(0.635, 0.82, 'label $l_1$', fontsize=6.4, va='center')
-    ax.text(0.635, 0.72, 'label $l_2$', fontsize=6.4, va='center')
-    ax.text(0.635, 0.62, '$\\cdots$ label $l_L$', fontsize=6.4, va='center')
-    ax.text(0.985, 0.528, 'reused for every label', fontsize=6.1,
+    ax.text(0.635, 0.82, 'label $l_1$', fontsize=7.4, va='center')
+    ax.text(0.635, 0.72, 'label $l_2$', fontsize=7.4, va='center')
+    ax.text(0.635, 0.62, '$\\cdots$ label $l_L$', fontsize=7.4, va='center')
+    ax.text(0.985, 0.528, 'reused for every label', fontsize=7.0,
             color=GRAY, va='center', ha='right', style='italic')
 
     ax.plot([0.02, 0.98], [0.485, 0.485], color='#cccccc', lw=0.6)
 
     # -- label-conditional (bottom half)
-    ax.text(0.02, 0.425, 'label-conditional', fontsize=7, fontweight='bold',
+    ax.text(0.02, 0.425, 'label-conditional', fontsize=8.0, fontweight='bold',
             va='center')
-    ax.text(0.02, 0.355, 'DSMIL, ML-Decoder, Q2L, HAP', fontsize=6.2,
+    ax.text(0.02, 0.355, 'DSMIL, ML-Decoder, Q2L, HAP', fontsize=7.1,
             color=GRAY, va='center')
     attn_bars(ax, 0.06, 0.12, 0.32, 0.16, v1, hot=1)
     attn_bars(ax, 0.56, 0.12, 0.32, 0.16, v2, hot=3)
-    ax.text(0.22, 0.048, '$a_i(l_1,\\cdot)$', fontsize=6.4, ha='center',
+    ax.text(0.22, 0.048, '$a_i(l_1,\\cdot)$', fontsize=7.4, ha='center',
             va='center')
-    ax.text(0.72, 0.048, '$a_i(l_2,\\cdot)$', fontsize=6.4, ha='center',
+    ax.text(0.72, 0.048, '$a_i(l_2,\\cdot)$', fontsize=7.4, ha='center',
             va='center')
-    ax.text(0.5, -0.075, 'one attention map per label', fontsize=6.4,
+    ax.text(0.5, -0.075, 'one attention map per label', fontsize=7.4,
             ha='center', va='center', color=GRAY, style='italic')
 
 
@@ -257,38 +278,41 @@ def panel_theory(ax):
     panel_tag(ax, 'c', 'Theorem: a ceiling $\\Gamma$')
     ax.text(0.5, 0.965,
             '$\\Gamma=\\sum_i \\max_j \\mathrm{cov}_i(j)\\,/\\,\\sum_i m_i$',
-            fontsize=6.9, ha='center', va='center')
+            fontsize=7.9, ha='center', va='center')
     ax.text(0.42, 0.815, 'attribution of any label-\n'
             'agnostic model $\\leq \\Gamma$ — set by\n'
             'label geometry, not training',
-            fontsize=5.9, ha='center', va='center', color=GRAY,
+            fontsize=6.9, ha='center', va='center', color=GRAY,
             style='italic')
 
     # left gauge: partition -> collapse
     yy = gauge(ax, 0.21, 0.5, 0.5)
-    ax.text(0.21, yy(0.5) + 0.075, '$\\Gamma$ = chance', fontsize=6.5,
+    ax.text(0.21, yy(0.5) + 0.075, '$\\Gamma$ = chance', fontsize=7.5,
             ha='center', va='center')
     ax.text(0.21, 0.028, '$W_i(l)$ partition\n$\\Rightarrow$ collapse\nto chance',
-            fontsize=6.0, ha='center', va='top')
+            fontsize=6.9, ha='center', va='top')
 
     # right gauge: overlap -> headroom
     yy = gauge(ax, 0.78, 0.10, 0.92)
-    ax.text(0.78, yy(0.92) + 0.062, '$\\Gamma$', fontsize=6.6, ha='center',
+    ax.text(0.78, yy(0.92) + 0.062, '$\\Gamma$', fontsize=7.6, ha='center',
             va='center', color=GREEN)
-    ax.text(0.685, yy(0.10), 'chance', fontsize=6.3, ha='right',
+    ax.text(0.685, yy(0.10), 'chance', fontsize=7.2, ha='right',
             va='center')
-    ax.text(0.78, yy(0.51), 'headroom', fontsize=5.8, ha='center',
+    ax.text(0.78, yy(0.51), 'headroom', fontsize=6.9, ha='center',
             va='center', color=GRAY, rotation=90)
-    ax.text(0.78, 0.028, '$W_i(l)$ overlap\n$\\Rightarrow$ band\nopens',
-            fontsize=6.0, ha='center', va='top')
+    ax.text(0.78, 0.028, 'no partition\n$\\Rightarrow$ band\nopens',
+            fontsize=6.9, ha='center', va='top')
 
 
 # ---------------------------------------------------------------- panel (d)
 
 def panel_results(ax, data, geom):
-    panel_tag(ax, 'd', '735 trained models (P@1, %)')
     datasets = [d for d in DS_ORDER if data.get(d)]
-    offsets = {m: (i - 3) * 0.105 for i, m in enumerate(ORDER)}
+    n_total = sum(v['n_models'] for d in datasets for v in data[d].values())
+    panel_tag(ax, 'd', f'{n_total} trained models (P@1, %)')
+    ypos = {d: len(datasets) - 1 - i for i, d in enumerate(datasets)}
+    sp = 0.105 if len(ORDER) == 7 else 0.09
+    offsets = {m: (i - (len(ORDER) - 1) / 2) * sp for i, m in enumerate(ORDER)}
 
     for row, ds in enumerate(datasets):
         y = len(datasets) - 1 - row
@@ -309,26 +333,32 @@ def panel_results(ax, data, geom):
                     markeredgewidth=1.0, linestyle='none', zorder=4)
 
     # Regime annotations; the numbers are re-verified in load().
-    kw = dict(fontsize=6.0, ha='right', va='center', color='#333333')
-    ax.text(99.5, 4.17, 'partition $\\Rightarrow$', **kw)
-    ax.text(99.5, 3.87, 'all 315 label-agnostic', **kw)
-    ax.text(99.5, 3.50,
-            'models at chance (dev. $\\leq 6{\\times}10^{-17}$);', **kw)
-    ax.text(99.5, 2.50, 'label-conditional up to $+37.5$', **kw)
-    ax.text(14.0, 1.50, 'overlap: band opens, models separate',
-            fontsize=6.1, ha='left', va='center', color='#333333')
+    kw = dict(fontsize=7.9, ha='right', va='center', color='#333333')
+    yf = ypos['letter_frost']
+    ax.text(99.5, yf + 0.17, 'partition $\\Rightarrow$', **kw)
+    ax.text(99.5, yf - 0.16, 'all 315 label-agnostic', **kw)
+    ax.text(99.5, yf - 0.52,
+            'models exactly at chance', **kw)
+    ax.text(99.5, yf - 1.50, 'label-conditional up to $+37.5$', **kw)
+    nxt = [d for d in datasets if d not in PARTITIONED]
+    if nxt:
+        ax.text(14.0, ypos[nxt[0]] + 0.5, 'no partition: band opens',
+                fontsize=7.9, ha='left', va='center', color='#333333')
 
     two_line = {'letter_frost': 'Letter\nFrost',
                 'letter_carroll': 'Letter\nCarroll', 'mscv2': 'MSRC v2',
+                'hja_birdsong': 'Bird\nSong',
                 'voc2012seg': 'VOC-Patch\nSeg',
-                'voc2012segml': 'VOC-Patch\nSeg-ML'}
+                'voc2012segml': 'VOC-Patch\nSeg-ML',
+                'voc2012seg_nc': 'VOC-Patch\nSeg',
+                'voc2012segml_nc': 'VOC-Patch\nSeg-ML'}
     ax.set_yticks(range(len(datasets)))
     ax.set_yticklabels([two_line[d] for d in reversed(datasets)],
-                       fontsize=6.4, linespacing=1.15)
+                       fontsize=7.4, linespacing=1.15)
     ax.set_ylim(-0.55, len(datasets) - 0.45)
     ax.set_xlim(13, 100)
     ax.set_xticks([20, 40, 60, 80, 100])
-    ax.tick_params(axis='x', labelsize=6.4, length=2.2, pad=1.5)
+    ax.tick_params(axis='x', labelsize=7.2, length=2.2, pad=1.5)
     ax.spines[['top', 'right']].set_visible(False)
 
 
@@ -349,17 +379,21 @@ def legend_rows():
 # ------------------------------------------------------------------ figure 1
 
 def fig_overview(data, geom, path):
-    fig = plt.figure(figsize=(7.6, 2.85))
-    gs = fig.add_gridspec(1, 5, width_ratios=[0.94, 1.22, 1.02, 0.34, 1.50],
-                          left=0.015, right=0.995, top=0.885, bottom=0.245,
-                          wspace=0.36)
-    panel_bag(fig.add_subplot(gs[0]))
-    panel_arch(fig.add_subplot(gs[1]))
-    panel_theory(fig.add_subplot(gs[2]))
-    panel_results(fig.add_subplot(gs[4]), data, geom)
+    # Two rows at the sn-jnl text width (~5.1 in), so the figure is placed
+    # near 1:1 and its lettering stays at about 7 pt in print.
+    fig = plt.figure(figsize=(5.4, 5.3))
+    top = fig.add_gridspec(1, 3, width_ratios=[0.94, 1.22, 1.02],
+                           left=0.02, right=0.99, top=0.93, bottom=0.58,
+                           wspace=0.30)
+    bot = fig.add_gridspec(1, 1, left=0.14, right=0.97, top=0.48,
+                           bottom=0.13)
+    panel_bag(fig.add_subplot(top[0]))
+    panel_arch(fig.add_subplot(top[1]))
+    panel_theory(fig.add_subplot(top[2]))
+    panel_results(fig.add_subplot(bot[0]), data, geom)
 
-    fig.legend(handles=legend_rows(), loc='lower center', ncol=5,
-               frameon=False, fontsize=6.3, handletextpad=0.45,
+    fig.legend(handles=legend_rows(), loc='lower center', ncol=4,
+               frameon=False, fontsize=8.0, handletextpad=0.45,
                columnspacing=1.1, bbox_to_anchor=(0.5, -0.005))
     fig.savefig(path, bbox_inches='tight')
     plt.close(fig)
@@ -396,7 +430,7 @@ def fig_abstract(data, geom, path):
 
     # Right: one partitioned + one overlapping benchmark, real numbers.
     axr = fig.add_axes([0.50, 0.30, 0.475, 0.50])
-    ds_show = ['mscv2', 'voc2012seg']
+    ds_show = ['mscv2', VOC_SEG]
     for row, ds in enumerate(ds_show):
         y = len(ds_show) - 1 - row
         g = geom[ds]
@@ -411,7 +445,7 @@ def fig_abstract(data, geom, path):
             if m not in data[ds]:
                 continue
             agn = m in LABEL_AGNOSTIC
-            axr.plot([100 * data[ds][m]['p1']], [y + (i - 3) * 0.068],
+            axr.plot([100 * data[ds][m]['p1']], [y + (i - (len(ORDER) - 1) / 2) * 0.068],
                      marker='o', markersize=3.4,
                      color=GRAY if agn else '#D55E00',
                      markerfacecolor='none' if agn else '#D55E00',
@@ -449,7 +483,10 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--outdir',
                    default=os.path.join(REPO, 'paper_attribution', 'figures'))
+    p.add_argument('--rev', default='v1', choices=['v1', 'r1'])
     args = p.parse_args()
+    if args.rev == 'r1':
+        use_r1()
     os.makedirs(args.outdir, exist_ok=True)
 
     data, geom = load()

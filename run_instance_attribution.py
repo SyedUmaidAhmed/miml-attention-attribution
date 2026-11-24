@@ -8,7 +8,9 @@ from the *same* models on the *same* splits, which is what makes the
 "bag accuracy does not predict instance grounding" comparison valid.
 
 Only datasets carrying per-instance ground truth (the DD-format files with a
-`YR` matrix) can be used: MSCV2, letter_frost, letter_carroll.
+`YR` matrix) can be used: MSCV2, letter_frost, letter_carroll, hja_birdsong
+(HJA Bird Song, built by datasets/build_hja_birdsong.py), plus the VOC-Patch
+subsets via side-car files.
 
 Usage
 -----
@@ -50,12 +52,30 @@ from miml_clam.training.enhanced_train_cv import run_cv             # noqa: E402
 from miml_clam.metrics.instance_metrics import (                     # noqa: E402
     all_instance_metrics, check_or_consistency,
 )
+from miml_clam.metrics.miml_metrics import (                         # noqa: E402
+    optimize_thresholds, AllFiveWithThresholds,
+)
+
+# HAP top-k ablation rows (DMKD revision; reviewer 1 pt 6, reviewer 3 pt 4).
+# Same as hap_only except k. hap_soft_only / hap_hard_only already exist in
+# ROW_OVERRIDES (alpha frozen at ~1 / ~0).
+ROW_OVERRIDES.setdefault('hap_k1', dict(ROW_OVERRIDES['hap_only'], hap_topk=1))
+ROW_OVERRIDES.setdefault('hap_k5', dict(ROW_OVERRIDES['hap_only'], hap_topk=5))
+
+# Label-agnostic baselines with a linear head on the pooled vector, for which
+# y_l = sum_j a_j u_l^T h_j + c_l holds exactly (reviewer 1 pt 2).
+ADDITIVE_METHODS = ('attnmil', 'gated_attn')
 
 # Datasets carrying per-instance ground truth. The three DD-format files have it
 # natively in their `YR` matrix; voc2012seg carries it in a side-car .npz built
 # from VOC's pixel-exact segmentation masks.
 INSTANCE_DATASETS = ['mscv2', 'letter_frost', 'letter_carroll',
-                     'voc2012seg', 'voc2012segml']
+                     'hja_birdsong', 'voc2012seg', 'voc2012segml',
+                     # DMKD revision: no-crop features (4x4) and the 8x8 grid
+                     'voc2012seg_nc', 'voc2012segml_nc', 'voc2012segml_g8',
+                     # the submitted (centre-cropped) Seg-ML features under the
+                     # revision protocol, to measure the crop effect (R1 pt 4)
+                     'voc2012segml_crop']
 
 # Datasets whose instance labels come from a side-car file rather than the
 # dataset object. Maps dataset name -> (npz path, array key).
@@ -69,7 +89,15 @@ INSTANCE_DATASETS = ['mscv2', 'letter_frost', 'letter_carroll',
 SIDECAR_GT = {
     'voc2012seg':   ('voc2012seg_patch_gt.npz', 'patch_seg'),
     'voc2012segml': ('voc2012segml_patch_gt.npz', 'patch_seg'),
+    'voc2012seg_nc': ('voc2012seg_nc_patch_gt.npz', 'patch_seg'),
+    'voc2012segml_nc': ('voc2012segml_nc_patch_gt.npz', 'patch_seg'),
+    'voc2012segml_g8': ('voc2012segml_g8_patch_gt.npz', 'patch_seg'),
+    'voc2012segml_crop': ('voc2012segml_crop_patch_gt.npz', 'patch_seg'),
 }
+
+# DMKD revision VOC protocol: one batch size for every method (v1 used 4, with
+# AB-MIL on VOC-Patch-Seg at 8). Applies only to the revision datasets.
+R1_VOC_BATCH = 8
 
 
 def _voc_seg_config(name='voc2012seg'):
@@ -83,7 +111,7 @@ def _voc_seg_config(name='voc2012seg'):
         'dataset': name,
         # Smaller batches: the 2048-dim features plus run_fold()'s per-fold
         # deepcopy make this the peak-memory dataset in the suite.
-        'batch_size': 4,
+        'batch_size': R1_VOC_BATCH if name.endswith(('_nc', '_g8', '_crop')) else 4,
     })
     return c
 
@@ -96,9 +124,92 @@ def _load_sidecar_gt(dataset):
     return z[key].astype(bool)
 
 INSTANCE_METRIC_KEYS = [
-    'InstP@1', 'InstP@3', 'InstMRR', 'InstAUC',
+    'InstP@1', 'InstP@3', 'InstMRR', 'InstAUC', 'InstAUCPooled',
     'ChanceP@1', 'LabelAgnosticCeiling',
+    # DMKD revision additions (absent from v1 cells)
+    'AddP@1', 'AddAUC', 'AddAUCPooled', 'AddIdentityMaxErr',
+    'DelTopSelf', 'DelTopOther', 'DelRndSelf', 'DelRndOther',
+    'DelTopSelective', 'DelRndSelective', 'DelPairs',
+    'BagAveragePrecision', 'BagHammingLoss', 'BagOneError', 'BagCoverage',
+    'BagRankingLoss', 'BagMacroF1', 'BagMicroF1',
 ]
+
+
+def additive_contributions(model, bags, mask):
+    """(B, L, N) per-label instance contributions a_j * u_l^T h_j.
+
+    Exact decomposition of the logit for AB-MIL / gated AB-MIL in eval mode:
+    logits[:, l] = contrib[:, l, :].sum(-1) + c_l. Returns (contrib, logits_rebuilt).
+    """
+    h = model.instance_embedding(bags)                       # (B, N, D)
+    out = model(bags, mask=mask)
+    a = out['attn_weights'][:, 0, :]                         # (B, N), shared
+    W = torch.cat([c.weight for c in model.classifiers], 0)  # (L, D)
+    bvec = torch.cat([c.bias for c in model.classifiers], 0) # (L,)
+    proj = torch.einsum('bnd,ld->bln', h, W)                 # (B, L, N)
+    contrib = a.unsqueeze(1) * proj
+    rebuilt = contrib.sum(-1) + bvec.unsqueeze(0)
+    return contrib, rebuilt, out['logits']
+
+
+def deletion_test(model, bags, mask, attn, labels, rng, chunk=256):
+    """Drop the top-attended instance for each present label (and, as a
+    control, a random other real instance) and re-run the model.
+
+    Reviewer 1 pt 7 / reviewer 3 pt 1. Returns arrays for post-hoc analysis:
+    pair_b, pair_l, top_j, rnd_j, base (B,L) raw logits, top (K,L), rnd (K,L).
+    Bags with fewer than two real instances are skipped (deleting would leave
+    an empty bag).
+    """
+    real = ~mask.bool().cpu().numpy()
+    lab = labels.cpu().numpy() > 0
+    pb, pl, tj, rj = [], [], [], []
+    for b in range(bags.shape[0]):
+        idx = np.nonzero(real[b])[0]
+        if len(idx) < 2:
+            continue
+        for l in np.nonzero(lab[b])[0]:
+            sc = attn[b, l, idx]
+            top = int(idx[int(np.argmax(sc))])
+            others = idx[idx != top]
+            pb.append(b); pl.append(int(l)); tj.append(top)
+            rj.append(int(rng.choice(others)))
+    with torch.no_grad():
+        base = model(bags, mask=mask)['logits'].float().cpu().numpy()
+    K = len(pb)
+    L = base.shape[1]
+    top_out = np.zeros((K, L), np.float32)
+    rnd_out = np.zeros((K, L), np.float32)
+    for which, js, dest in (('top', tj, top_out), ('rnd', rj, rnd_out)):
+        for s0 in range(0, K, chunk):
+            sl = slice(s0, min(K, s0 + chunk))
+            bi = torch.as_tensor(pb[sl], device=bags.device)
+            m2 = mask.bool()[bi].clone()
+            m2[torch.arange(len(bi), device=bags.device),
+               torch.as_tensor(js[sl], device=bags.device)] = True
+            with torch.no_grad():
+                dest[sl] = model(bags[bi], mask=m2)['logits'].float().cpu().numpy()
+    return (np.asarray(pb, np.int32), np.asarray(pl, np.int32),
+            np.asarray(tj, np.int32), np.asarray(rj, np.int32),
+            base, top_out, rnd_out)
+
+
+def _deletion_summary(pb, pl, base, top, rnd):
+    """Mean logit drops: self = label l, other = mean over the other labels."""
+    if len(pb) == 0:
+        return {}
+    K, L = top.shape
+    b_rows = base[pb]                                        # (K, L)
+    out = {}
+    for name, arr in (('Top', top), ('Rnd', rnd)):
+        drop = b_rows - arr                                  # (K, L) positive = fell
+        self_d = drop[np.arange(K), pl]
+        other = (drop.sum(1) - self_d) / max(L - 1, 1)
+        out[f'Del{name}Self'] = float(self_d.mean())
+        out[f'Del{name}Other'] = float(other.mean())
+        out[f'Del{name}Selective'] = float((self_d > other).mean())
+    out['DelPairs'] = int(K)
+    return out
 
 
 def _device(force=None):
@@ -112,7 +223,7 @@ def _device(force=None):
 
 
 def evaluate_attribution(model, test_loader, dataset, test_idx, device,
-                         sidecar=None):
+                         sidecar=None, method=None, extras=None, rng=None):
     """Instance-level metrics for one trained model on its test fold.
 
     Uses `eff_attn` when the model exposes it (the true HAP mixture
@@ -123,8 +234,12 @@ def evaluate_attribution(model, test_loader, dataset, test_idx, device,
     model.eval()
 
     attn_batches, inst_batches, bag_batches, mask_batches = [], [], [], []
+    add_batches, del_batches = [], []
+    add_err = 0.0
     ptr = 0
     used_eff = False
+    if rng is None:
+        rng = np.random.RandomState(0)
 
     with torch.no_grad():
         for bags, labels, mask in test_loader:
@@ -136,6 +251,18 @@ def evaluate_attribution(model, test_loader, dataset, test_idx, device,
             else:
                 attn = out['attn_weights']
             attn = attn.detach().cpu().numpy()
+
+            if extras is not None:
+                bd, md = bags.to(device), mask.to(device)
+                if method in ADDITIVE_METHODS:
+                    contrib, rebuilt, logits = additive_contributions(
+                        model, bd, md)
+                    add_err = max(add_err, float(
+                        (rebuilt - logits).abs().max().item()))
+                    add_batches.append(contrib.detach().cpu().numpy())
+                pb, pl, tj, rj, base, top, rnd = deletion_test(
+                    model, bd, md, attn, labels, rng)
+                del_batches.append((pb + ptr, pl, tj, rj, base, top, rnd))
 
             idxs = test_idx[ptr:ptr + bs]
             ptr += bs
@@ -185,10 +312,38 @@ def evaluate_attribution(model, test_loader, dataset, test_idx, device,
 
     metrics = all_instance_metrics(attn, inst, bag, mask=mask, topk=(1, 3))
     metrics['_used_eff_attn'] = used_eff
+
+    if extras is not None:
+        arrays = {'attn': attn.astype(np.float32), 'inst': inst,
+                  'bag': bag, 'mask': mask,
+                  'test_idx': np.asarray(test_idx, np.int64)}
+        if add_batches:
+            add = np.concatenate([pad_attn(a) for a in add_batches], axis=0)
+            am = all_instance_metrics(add, inst, bag, mask=mask, topk=(1,))
+            metrics['AddP@1'] = am['InstP@1']
+            metrics['AddAUC'] = am['InstAUC']
+            metrics['AddAUCPooled'] = am['InstAUCPooled']
+            metrics['AddIdentityMaxErr'] = add_err
+            arrays['additive'] = add.astype(np.float32)
+        if del_batches:
+            cat = lambda i: np.concatenate([d[i] for d in del_batches], 0)
+            pb, pl, tj, rj = cat(0), cat(1), cat(2), cat(3)
+            base, top, rnd = cat(4), cat(5), cat(6)
+            metrics.update(_deletion_summary(pb, pl, base, top, rnd))
+            arrays.update(del_b=pb, del_l=pl, del_top_j=tj, del_rnd_j=rj,
+                          base_logits=base, del_top_logits=top,
+                          del_rnd_logits=rnd)
+        hap = getattr(getattr(model, 'label_attention', None), 'hap', None)
+        if hap is not None and hasattr(hap, 'beta'):
+            alpha = torch.sigmoid(hap.beta.detach().float()).cpu().numpy()
+            arrays['hap_alpha'] = alpha
+            metrics['HapAlpha'] = [float(x) for x in alpha]
+        extras.update(arrays)
     return metrics
 
 
-def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble):
+def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble,
+             save_arrays=True, seeds=None, data_suffix=''):
     out_path = os.path.join(outdir, f'{method}__{dataset}.json')
     if os.path.exists(out_path) and not rerun:
         print(f'  cached: {out_path}', flush=True)
@@ -220,6 +375,8 @@ def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble):
 
     if no_ensemble:
         config.pop('ensemble_seeds', None)
+    elif seeds is not None:
+        config['ensemble_seeds'] = list(seeds)
     num_folds = folds if folds is not None else config.get('default_folds', 5)
 
     device = _device(force_device)
@@ -227,19 +384,52 @@ def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble):
           f'folds={num_folds})', flush=True)
 
     records = []
+    pending = {}
+    arr_dir = os.path.join(outdir, 'arrays')
+    if save_arrays:
+        os.makedirs(arr_dir, exist_ok=True)
 
     def collector(fold_idx, seed, model, test_loader, ds, test_idx, dev):
+        extras = {} if save_arrays else None
+        # local RNG: never touches the global streams that seed training
+        rng = np.random.RandomState(1000 * int(fold_idx) + (seed or 0))
         m = evaluate_attribution(model, test_loader, ds, test_idx, dev,
-                                 sidecar=sidecar)
+                                 sidecar=sidecar, method=method,
+                                 extras=extras, rng=rng)
         m['fold'] = int(fold_idx)
         m['seed'] = None if seed is None else int(seed)
         records.append(m)
-        print(f'    [attr] fold {fold_idx + 1} seed {seed}: '
-              f"P@1={m['InstP@1']:.4f} AUC={m['InstAUC']:.4f} "
-              f"(chance {m['ChanceP@1']:.4f})", flush=True)
+        pending[(int(fold_idx), seed)] = (m, extras)
+        msg = (f'    [attr] fold {fold_idx + 1} seed {seed}: '
+               f"P@1={m['InstP@1']:.4f} AUC={m['InstAUC']:.4f} "
+               f"pooled={m['InstAUCPooled']:.4f} "
+               f"(chance {m['ChanceP@1']:.4f})")
+        if 'DelTopSelf' in m:
+            msg += (f" del self/other={m['DelTopSelf']:.3f}/"
+                    f"{m['DelTopOther']:.3f} rnd={m['DelRndSelf']:.3f}")
+        if 'AddP@1' in m:
+            msg += f" add P@1={m['AddP@1']:.4f} (id err {m['AddIdentityMaxErr']:.1e})"
+        print(msg, flush=True)
+
+    def pred_collector(fold_idx, seed, tl, tp, vl, vp, source):
+        m, extras = pending.pop((int(fold_idx), seed))
+        thr = optimize_thresholds(vl, vp, metric='hamming')
+        bm = AllFiveWithThresholds(tl, tp, thr)
+        for k, v in bm.items():
+            m[f'Bag{k}'] = float(v)
+        m['BagHead'] = source
+        print(f"    [bag]  fold {fold_idx + 1} seed {seed}: "
+              f"AP={m['BagAveragePrecision']:.4f} ({source})", flush=True)
+        if extras is not None:
+            extras.update(test_labels=np.asarray(tl), test_probs=np.asarray(tp),
+                          thresholds=np.asarray(thr))
+            np.savez_compressed(
+                os.path.join(arr_dir, f'{method}__{dataset}{data_suffix}'
+                             f'__f{int(fold_idx)}_s{seed}.npz'), **extras)
 
     original_create_model = _etcv.create_model
     _etcv.ATTENTION_COLLECTOR = collector
+    _etcv.PREDICTION_COLLECTOR = pred_collector
     if is_baseline:
         factory = MODEL_FACTORIES[method]
         _etcv.create_model = lambda cfg, dev='cpu': factory(cfg, dev)
@@ -256,6 +446,7 @@ def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble):
                                       num_folds=num_folds)
     finally:
         _etcv.ATTENTION_COLLECTOR = None
+        _etcv.PREDICTION_COLLECTOR = None
         _etcv.create_model = original_create_model
 
     # Aggregate instance metrics over every trained model.
@@ -275,6 +466,9 @@ def run_cell(method, dataset, folds, outdir, rerun, force_device, no_ensemble):
         'bag_metrics_mean_std': results,
         'instance_metrics_mean_std': agg,
         'instance_per_model': records,
+        'device': str(device),
+        'torch_version': torch.__version__,
+        'protocol_rev': 'dmkd_r1',
         'config': {k: v for k, v in config.items()
                    if isinstance(v, (int, float, str, bool, list, type(None)))},
         'wall_clock_seconds': time.time() - t0,
@@ -298,7 +492,16 @@ def main():
     ap.add_argument('--rerun', action='store_true')
     ap.add_argument('--device', default=None,
                     choices=['cpu', 'mps', 'cuda'])
+    ap.add_argument('--no-arrays', action='store_true',
+                    help='do not save per-model attention/deletion arrays')
+    ap.add_argument('--seeds', default=None,
+                    help='comma-separated ensemble seeds overriding the config')
+    ap.add_argument('--threads', type=int, default=None,
+                    help='torch.set_num_threads (for parallel CPU workers)')
     args = ap.parse_args()
+    if args.threads:
+        torch.set_num_threads(args.threads)
+    seeds = ([int(x) for x in args.seeds.split(',')] if args.seeds else None)
 
     os.makedirs(args.outdir, exist_ok=True)
     methods = [m for m in args.methods.split(',') if m]
@@ -309,7 +512,8 @@ def main():
         for dataset in datasets:
             try:
                 run_cell(method, dataset, args.folds, args.outdir,
-                         args.rerun, args.device, args.no_ensemble)
+                         args.rerun, args.device, args.no_ensemble,
+                         save_arrays=not args.no_arrays, seeds=seeds)
             except Exception as exc:      # one bad cell must not kill the sweep
                 err = os.path.join(args.outdir, f'{method}__{dataset}.error.txt')
                 with open(err, 'w') as f:

@@ -1,15 +1,16 @@
-"""Build VOC-Patch-Seg: the pixel-exact instance-labelled MIML benchmark.
+"""Build VOC-Patch-Seg: the segmentation-derived instance-labelled MIML benchmark.
 
 Takes the rows of `voc2012.mat` that have a VOC SegmentationClass mask and
 writes them out as a standalone MIML dataset plus a matching patch-label file.
 
-Why only the segmentation subset? The bounding-box-derived patch labels have
-93.1% recall but only 75.7% precision against the masks (boxes contain
+Why only the segmentation subset? At the 0.05 overlap threshold the
+bounding-box-derived patch labels have 95.7% recall but only 74.4% precision
+against the mask-derived labels on the 2,913 masked images (boxes contain
 background, so they over-assign). Over-assignment *inflates* measured
 attribution — a wrong guess can land on a spurious witness and score as
 correct. The bbox set is therefore sound for negative claims ("this method
 fails to localize") but not for positive ones. Every claim that a method *does*
-localize has to rest on pixel-exact labels, which is this subset.
+localize has to rest on mask-derived labels, which is this subset.
 
 Outputs (into DATA_DIR):
     voc2012seg.mat        bags (n,1) object array of (16, 2048), labels (n,20) in {-1,+1}
@@ -59,18 +60,19 @@ def build(data_dir: str = DEFAULT_OUT_DIR, seed: int = 42,
         raise RuntimeError('bag labels disagree between .mat and patch GT — '
                            'row order is not aligned; refusing to build')
 
-    # Bag labels are defined as the OR of the patch labels, NOT inherited from
-    # the image-level XML annotation. Two reasons, both measured:
-    #   * 103 of 3,095 image-level label instances (3.3%) have no patch witness
-    #     at the chosen overlap threshold (objects too small to cover the
-    #     threshold fraction of any patch). Inheriting them would violate the
-    #     OR-consistency condition the attribution metrics assume, on 16.75% of
-    #     multi-label bags.
-    #   * 109 patch labels are absent from the image label vector, because
-    #     `_read_label_vector` drops `difficult=1` objects while the
-    #     segmentation masks still paint them.
-    # Defining bag labels as the OR makes consistency hold exactly by
-    # construction and treats difficult objects the same way in both views.
+    # Bag labels. VOC-Patch-Seg keeps the image-level VOC annotation (from the
+    # XML, `difficult` objects excluded), exactly as the data used in the paper
+    # (`voc2012seg.mat` of 2026-08-17): 103 of its 3,095 labels then have no
+    # patch witness at tau = 0.05 and are non-scorable, and 109 patch witnesses
+    # belong to `difficult` objects absent from the label vector. Its bag labels
+    # therefore do not depend on tau.
+    # VOC-Patch-Seg-ML (--multilabel-only) redefines bag labels as the OR of the
+    # patch labels, which makes OR-consistency hold by construction, and keeps
+    # bags with >= 2 derived labels; both its labels and its membership depend
+    # on tau.
+    # (A refactor in commit c7a4097 applied the OR to both subsets; that version
+    # never produced a file used in the paper. Restored 2026-11-24, DMKD
+    # revision, defect D3.)
     derived = patch_seg.any(axis=1)                     # (n_all, L) bool
 
     sel = np.nonzero(has_seg)[0]
@@ -83,8 +85,11 @@ def build(data_dir: str = DEFAULT_OUT_DIR, seed: int = 42,
     out_bags = np.empty((n, 1), dtype=object)
     for i, gi in enumerate(sel):
         out_bags[i, 0] = np.asarray(bags[gi, 0], dtype=np.float32)
-    # {-1,+1} convention, from the derived (OR-of-patches) labels
-    out_labels = np.where(derived[sel], 1, -1).astype(np.int32)
+    # {-1,+1} convention
+    if multilabel_only:
+        out_labels = np.where(derived[sel], 1, -1).astype(np.int32)
+    else:
+        out_labels = np.where(labels[sel] > 0, 1, -1).astype(np.int32)
 
     mat_path = os.path.join(data_dir, f'{stem}.mat')
     savemat(mat_path, {'bags': out_bags, 'labels': out_labels})

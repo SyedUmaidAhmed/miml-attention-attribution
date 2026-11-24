@@ -14,3 +14,7 @@ paper_attribution/*.spl
 paper_attribution/*.blg
 paper_attribution/*.synctex.gz
 paper_attribution/build.log
+data/MIML-SELFVIT/voc2012seg_nc.mat
+data/MIML-SELFVIT/voc2012segml_nc.mat
+data/MIML-SELFVIT/voc2012segml_g8.mat
+results/instance_level_r1/arrays/

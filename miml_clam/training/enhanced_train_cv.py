@@ -26,6 +26,22 @@ from .enhanced_trainer import EnhancedTrainer
 # Set it via `enhanced_train_cv.ATTENTION_COLLECTOR = fn` and restore to None.
 ATTENTION_COLLECTOR = None
 
+# Optional per-model prediction hook (DMKD revision, reviewer 1 point 5). When
+# set, it is called once per trained model, right after ATTENTION_COLLECTOR, as
+#   (fold_idx, seed, test_labels, test_probs, val_labels, val_probs, source)
+# where the probabilities are that single model's own (the head, raw or
+# coupled, chosen on validation AP exactly as the ensemble path does). It lets
+# bag metrics be reported per model rather than only per fold-ensemble. None by
+# default; normal sweeps are unaffected.
+PREDICTION_COLLECTOR = None
+
+
+def _choose_head(vl, vr, vc, tr, tc):
+    """Pick raw vs coupled probabilities by validation AP (ties -> coupled)."""
+    if AP_fn(vl, vc) >= AP_fn(vl, vr):
+        return vc, tc, 'coupled'
+    return vr, tr, 'raw'
+
 
 def create_model(config, device='cpu'):
     """Create MIML-CLAM++ model from config dict."""
@@ -133,6 +149,11 @@ def run_fold(fold_idx, dataset_orig, train_idx, test_idx, config, device='cpu'):
     if ATTENTION_COLLECTOR is not None:
         ATTENTION_COLLECTOR(fold_idx, None, model, test_loader,
                             dataset, test_idx, device)
+    if PREDICTION_COLLECTOR is not None:
+        _vl, _vr, _vc = trainer.get_predictions(val_loader)
+        _tl, _tr, _tc = trainer.get_predictions(test_loader)
+        _vp, _tp, _src = _choose_head(_vl, _vr, _vc, _tr, _tc)
+        PREDICTION_COLLECTOR(fold_idx, None, _tl, _tp, _vl, _vp, _src)
 
     use_threshold_opt = config.get('use_threshold_opt', False)
 
@@ -202,12 +223,11 @@ def _run_fold_ensemble(fold_idx, dataset, actual_train_idx, val_idx, test_idx,
         vl, vr, vc = trainer.get_predictions(val_loader)
         tl, tr, tc = trainer.get_predictions(test_loader)
 
-        if AP_fn(vl, vc) >= AP_fn(vl, vr):
-            all_val_probs.append(vc)
-            all_test_probs.append(tc)
-        else:
-            all_val_probs.append(vr)
-            all_test_probs.append(tr)
+        _vp, _tp, _src = _choose_head(vl, vr, vc, tr, tc)
+        all_val_probs.append(_vp)
+        all_test_probs.append(_tp)
+        if PREDICTION_COLLECTOR is not None:
+            PREDICTION_COLLECTOR(fold_idx, seed, tl, _tp, vl, _vp, _src)
 
         val_labels = vl
         test_labels = tl

@@ -11,9 +11,26 @@ reviewers singled out as a strength:
 Pairing is by (fold, seed) so every comparison is on identical splits and
 identical seeds -- the models differ only in architecture.
 
+The seven seeds of a fold share one test fold, so the 35 paired models are not
+35 independent replications and the Wilcoxon p-values are optimistic. Each
+comparison therefore also records a fold-level check: the paired difference
+averaged over the seeds of each fold, and the number of folds (of 5) in which
+it has the sign of the overall mean.
+
+DMKD revision (reviewer 3, pt 3): because of that dependence, the primary test
+is now at the FOLD level. Seed-averaged differences per fold (k = number of
+folds) are tested with the Nadeau-Bengio corrected resampled t-test (variance
+inflated by 1/k + n_test/n_train = 1/k + 1/(k-1), df = k-1, one-sided), Holm
+over the comparisons of a dataset. The exact fold-level Wilcoxon is reported
+too; with k = 5 its smallest one-sided p is 1/32, so it cannot survive Holm
+over 21 comparisons and is shown for transparency only. The per-model Wilcoxon
+is kept as a secondary, explicitly optimistic analysis.
+
 Usage:
     python3 analysis/attribution_stats.py
     python3 analysis/attribution_stats.py --metric InstAUC
+    python3 analysis/attribution_stats.py --results results/instance_level_r1 \
+        --methods attnmil,gated_attn,transmil_lite,dsmil,ml_decoder,q2l,hap_only
 """
 
 from __future__ import annotations
@@ -26,18 +43,36 @@ import os
 import sys
 
 import numpy as np
-from scipy.stats import wilcoxon
+from scipy.stats import wilcoxon, t as t_dist
 
 RESULTS = 'results/instance_level'
 LABEL_AGNOSTIC = {'attnmil', 'gated_attn', 'transmil_lite'}
 
 
-def load():
+def load(results=RESULTS, methods=None):
     cells = {}
-    for f in glob.glob(os.path.join(RESULTS, '*__*.json')):
+    for f in glob.glob(os.path.join(results, '*__*.json')):
         d = json.load(open(f))
+        if methods and d['method'] not in methods:
+            continue
         cells[(d['method'], d['dataset'])] = d
     return cells
+
+
+def nb_corrected_t(fold_diffs):
+    """Nadeau & Bengio (2003) corrected resampled t-test, one-sided (d > 0).
+
+    For k-fold CV, n_test/n_train = 1/(k-1). Returns (t, p).
+    """
+    d = np.asarray(fold_diffs, float)
+    k = len(d)
+    var = d.var(ddof=1)
+    if k < 2 or var == 0:
+        return (float('inf') if d.mean() > 0 else 0.0,
+                0.0 if d.mean() > 0 else 1.0)
+    se = np.sqrt((1.0 / k + 1.0 / (k - 1)) * var)
+    tval = d.mean() / se
+    return float(tval), float(t_dist.sf(tval, df=k - 1))
 
 
 def keyed(d, metric):
@@ -76,9 +111,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--metric', default='InstP@1')
     ap.add_argument('--out', default='paper_pr/tables_attr/attribution_stats.json')
+    ap.add_argument('--results', default=RESULTS)
+    ap.add_argument('--methods', default=None,
+                    help='comma-separated method filter')
     args = ap.parse_args()
 
-    cells = load()
+    cells = load(args.results,
+                 set(args.methods.split(',')) if args.methods else None)
     datasets = sorted({k[1] for k in cells})
     report = {}
 
@@ -116,6 +155,10 @@ def main():
                 # both pinned to the fold's chance rate)
                 comps.append({'a': a, 'b': b, 'mean_diff': 0.0, 'p': 1.0,
                               'cliffs_delta': 0.0, 'ci': [0.0, 0.0],
+                              'fold_diffs': [0.0] * len({k[0] for k in common}),
+                              'folds_same_sign': 0,
+                              'p_fold_nb': 1.0, 't_fold_nb': 0.0,
+                              'p_fold_wilcoxon': 1.0,
                               'note': 'identical across all paired models'})
                 pvals.append(1.0)
                 continue
@@ -123,8 +166,20 @@ def main():
                 stat, p = wilcoxon(va, vb, alternative='greater')
             except ValueError:
                 p = 1.0
+            folds = sorted({k[0] for k in common})
+            fold_diffs = [float(np.mean([d for k, d in zip(common, diff)
+                                         if k[0] == f])) for f in folds]
+            t_nb, p_nb = nb_corrected_t(fold_diffs)
+            try:
+                p_fw = float(wilcoxon(fold_diffs, alternative='greater').pvalue)
+            except ValueError:
+                p_fw = 1.0
             comps.append({
                 'a': a, 'b': b,
+                'fold_diffs': fold_diffs,
+                't_fold_nb': t_nb, 'p_fold_nb': p_nb,
+                'p_fold_wilcoxon': p_fw,
+                'folds_same_sign': int(sum(fd > 0 for fd in fold_diffs)),
                 'mean_diff': float(diff.mean()),
                 'p': float(p),
                 'cliffs_delta': float(cliffs_delta(va, vb)),
@@ -133,9 +188,12 @@ def main():
             pvals.append(float(p))
 
         adj = holm(np.array(pvals))
-        for c, q in zip(comps, adj):
+        adj_nb = holm(np.array([c['p_fold_nb'] for c in comps]))
+        for c, q, qn in zip(comps, adj, adj_nb):
             c['p_holm'] = float(q)
             c['significant'] = bool(q < 0.05 and c['mean_diff'] > 0)
+            c['p_fold_nb_holm'] = float(qn)
+            c['significant_fold'] = bool(qn < 0.05 and c['mean_diff'] > 0)
 
         report[ds] = {'n_paired_models': len(common), 'comparisons': comps}
 
@@ -153,8 +211,11 @@ def main():
         for c in sorted(wins, key=lambda x: -x['mean_diff']):
             print(f'  {c["a"]:14s} > {c["b"]:14s} '
                   f'Δ={100*c["mean_diff"]:+6.2f}pts  '
-                  f'p_holm={c["p_holm"]:.2e}  δ={c["cliffs_delta"]:+.2f}')
-        print(f'  ({len(wins)} Holm-significant of {len(r["comparisons"])} pairs)')
+                  f'p_holm={c["p_holm"]:.2e}  fold-NB p_holm={c["p_fold_nb_holm"]:.2e}  '
+                  f'folds {c["folds_same_sign"]}  δ={c["cliffs_delta"]:+.2f}')
+        nf = sum(c['significant_fold'] for c in r['comparisons'])
+        print(f'  ({len(wins)} Holm-significant per model; {nf} at fold level '
+              f'(NB corrected t); of {len(r["comparisons"])} pairs)')
     print(f'\nwrote {args.out}')
 
 

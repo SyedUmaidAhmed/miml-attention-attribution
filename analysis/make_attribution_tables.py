@@ -35,24 +35,55 @@ RESULTS = 'results/instance_level'
 # transmil_lite.py all do attn.unsqueeze(1).expand(-1, L, -1).
 LABEL_AGNOSTIC = {'attnmil', 'gated_attn', 'transmil_lite'}
 
+# Plain names: the DMKD (sn-jnl) build uses author-year citations, which do not
+# fit in a table row. Each architecture is cited where it is defined
+# (sections/architectures.tex).
 DISPLAY = {
-    'attnmil': 'AttnMIL~\\cite{ilse2018attention}',
-    'gated_attn': 'GatedAttention~\\cite{ilse2018attention}',
-    'transmil_lite': 'TransMIL~\\cite{shao2021transmil}',
-    'dsmil': 'DSMIL~\\cite{li2021dsmil}',
-    'ml_decoder': 'ML-Decoder~\\cite{ridnik2023mldecoder}',
-    'q2l': 'Q2L~\\cite{liu2021q2l}',
-    'hap_only': 'HAP (ours)',
+    'attnmil': 'AB-MIL',
+    'gated_attn': 'Gated AB-MIL',
+    'transmil_lite': 'TransMIL',
+    'dsmil': 'DSMIL',
+    'ml_decoder': 'ML-Decoder',
+    'q2l': 'Q2L',
+    'hap_only': 'HAP',
 }
 ORDER = ['attnmil', 'gated_attn', 'transmil_lite',
          'dsmil', 'ml_decoder', 'q2l', 'hap_only']
 DS_DISPLAY = {
     'letter_frost': 'Letter Frost', 'letter_carroll': 'Letter Carroll',
-    'mscv2': 'MSRC~v2', 'voc2012seg': 'VOC-Patch-Seg',
-    'voc2012segml': 'VOC-Patch-Seg-ML',
+    'mscv2': 'MSRC~v2', 'hja_birdsong': 'Bird Song',
+    'voc2012seg': 'VOC-Patch-Seg', 'voc2012segml': 'VOC-Patch-Seg-ML',
 }
-DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2',
+DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2', 'hja_birdsong',
             'voc2012seg', 'voc2012segml']
+
+
+# DMKD revision (--rev r1): results/instance_level_r1, per-model bag AP, pooled
+# AUC, the official DSMIL form as "DSMIL" and the v1 form as "DSMIL-sep",
+# VOC-Patch on the no-crop features. HAP ablation rows go to their own table
+# (analysis/make_revision_tables.py), not the main one.
+R1_DISPLAY = dict(DISPLAY, dsmil_orig='DSMIL', dsmil='DSMIL-sep')
+R1_ORDER = ['attnmil', 'gated_attn', 'transmil_lite',
+            'dsmil_orig', 'dsmil', 'ml_decoder', 'q2l', 'hap_only']
+R1_DS_ORDER = ['letter_frost', 'letter_carroll', 'mscv2', 'hja_birdsong',
+               'voc2012seg_nc', 'voc2012segml_nc']
+R1_DS_DISPLAY = dict(DS_DISPLAY, voc2012seg_nc='VOC-Patch-Seg',
+                     voc2012segml_nc='VOC-Patch-Seg-ML')
+REV = 'v1'
+
+
+def bag_ap(d):
+    """Per-model mean AP (revision) or the stored fold-ensemble AP (v1)."""
+    im = d['instance_metrics_mean_std']
+    if REV == 'r1' and 'BagAveragePrecision' in im:
+        return im['BagAveragePrecision'][0]
+    return d['bag_metrics_mean_std']['AveragePrecision'][0]
+
+
+def auc_val(im):
+    if REV == 'r1' and 'InstAUCPooled' in im:
+        return im['InstAUCPooled'][0]
+    return im['InstAUC'][0]
 
 
 def load_cells():
@@ -67,15 +98,19 @@ DATASET_CEILING = {}   # filled by regime_table(); dataset-level, not fold-level
 
 
 def main_table(cells, datasets, methods):
-    # Emitted as two stacked panels (classical benchmarks / VOC-Patch) so the
-    # table fits \textwidth at \footnotesize without \resizebox -- a single
-    # 21-column tabular shrinks to unreadable print in the double-spaced
-    # elsarticle manuscript.
+    # Emitted as two stacked panels (partitioned benchmarks / the rest): a
+    # single 21-column tabular shrinks to unreadable print in the double-spaced
+    # double-spaced manuscript. Each panel sits in an adjustbox that only scales
+    # it down when it exceeds \textwidth (390pt in elsarticle preprint 12pt, narrower in sn-jnl;
+    # the 13-column classical panel is ~450pt at \footnotesize), so the
+    # manuscript preamble must load the adjustbox package.
+    def boxed(t):
+        return '\\adjustbox{max width=\\textwidth}{%\n' + t + '}'
     if len(datasets) > 3:
-        return (_panel(cells, datasets[:3], methods)
+        return (boxed(_panel(cells, datasets[:3], methods))
                 + '\n\\par\\vspace{0.9em}\n'
-                + _panel(cells, datasets[3:], methods, header_comment=False))
-    return _panel(cells, datasets, methods)
+                + boxed(_panel(cells, datasets[3:], methods, header_comment=False)))
+    return boxed(_panel(cells, datasets, methods))
 
 
 def _panel(cells, datasets, methods, header_comment=True):
@@ -91,6 +126,8 @@ def _panel(cells, datasets, methods, header_comment=True):
     for ds in datasets:
         hdr.append('\\multicolumn{4}{c}{' + DS_DISPLAY.get(ds, ds) + '}')
     lines.append(' & '.join(hdr) + ' \\\\')
+    lines.append(' '.join(f'\\cmidrule(lr){{{2+4*k}-{5+4*k}}}'
+                          for k in range(len(datasets))))
     sub = ['']
     for _ in datasets:
         sub += ['AP', 'P@1', '$\\Delta$', 'AUC']
@@ -105,12 +142,14 @@ def _panel(cells, datasets, methods, header_comment=True):
                 row += ['--'] * 4
                 continue
             im = d['instance_metrics_mean_std']
-            ap = d['bag_metrics_mean_std']['AveragePrecision'][0]
+            ap = bag_ap(d)
             p1 = im['InstP@1'][0]
             ch = im['ChanceP@1'][0]
-            auc = im['InstAUC'][0]
-            row += [f'{ap:.3f}', f'{100*p1:.1f}',
-                    f'{100*(p1-ch):+.1f}', f'{auc:.3f}']
+            auc = auc_val(im)
+            dlt = f'{100*(p1-ch):+.1f}'
+            if dlt.startswith('-'):
+                dlt = '$-$' + dlt[1:]
+            row += [f'{ap:.3f}', f'{100*p1:.1f}', dlt, f'{auc:.3f}']
         lines.append(' & '.join(row) + ' \\\\')
         if m == 'transmil_lite':
             lines.append('\\midrule')
@@ -141,9 +180,11 @@ def _panel(cells, datasets, methods, header_comment=True):
 
 
 KEY_FOR_DISPLAY = {'MSRC~v2': 'mscv2', 'Letter Frost': 'letter_frost',
-                   'Letter Carroll': 'letter_carroll',
+                   'Letter Carroll': 'letter_carroll', 'Bird Song': 'hja_birdsong',
                    'VOC-Patch-Seg': 'voc2012seg',
                    'VOC-Patch-Seg-ML': 'voc2012segml'}
+R1_KEY_FOR_DISPLAY = dict(KEY_FOR_DISPLAY, **{'VOC-Patch-Seg': 'voc2012seg_nc',
+                                              'VOC-Patch-Seg-ML': 'voc2012segml_nc'})
 
 
 def regime_table():
@@ -153,15 +194,17 @@ def regime_table():
     from analysis.instance_level_stats import load_padded
 
     rows = []
-    for name, key in [('MSRC~v2', 'MSCV2'), ('Letter Frost', 'letter_frost'),
-                      ('Letter Carroll', 'letter_carroll')]:
+    for name, key in [('Letter Frost', 'letter_frost'),
+                      ('Letter Carroll', 'letter_carroll'), ('MSRC~v2', 'MSCV2'),
+                      ('Bird Song', 'hja_birdsong')]:
         _, inst, bag, mask = load_padded(key)
         rows.append((name, inst, bag, mask))
 
     # VOC-Patch-Seg from its side-car
     from datasets.voc_miml import DEFAULT_OUT_DIR
-    for disp, stem in [('VOC-Patch-Seg', 'voc2012seg'),
-                       ('VOC-Patch-Seg-ML', 'voc2012segml')]:
+    sfx = '_nc' if REV == 'r1' else ''
+    for disp, stem in [('VOC-Patch-Seg', 'voc2012seg' + sfx),
+                       ('VOC-Patch-Seg-ML', 'voc2012segml' + sfx)]:
         try:
             z = np.load(os.path.join(DEFAULT_OUT_DIR, f'{stem}_patch_gt.npz'),
                         allow_pickle=True)
@@ -170,11 +213,13 @@ def regime_table():
         except Exception as exc:                               # pragma: no cover
             sys.stderr.write(f'warning: {stem} not available ({exc})\n')
 
+    r1 = REV == 'r1'
     out = [
         '% GENERATED by analysis/make_attribution_tables.py -- do not edit',
-        '\\begin{tabular}{lrrrrr}',
+        '\\begin{tabular}{lrrrrr' + ('r' if r1 else '') + '}',
         '\\toprule',
-        'Dataset & Bags & Disjoint pairs & Chance P@1 & Ceiling & Headroom \\\\',
+        'Benchmark & Bags & Disjoint pairs & Chance P@1 & Ceiling & Headroom'
+        + (' & AUC$_{\\mathrm{pool}}$ ceiling' if r1 else '') + ' \\\\',
         '\\midrule',
     ]
     summary = {}
@@ -182,12 +227,19 @@ def regime_table():
         ch = chance_precision_at_1(inst, bag, mask)
         ce = label_agnostic_ceiling(inst, bag, mask)
         dj = witness_disjointness(inst, bag, mask)
-        out.append(f'{name} & {bag.shape[0]} & {100*dj:.1f}\\% & '
-                   f'{100*ch:.1f}\\% & {100*ce:.1f}\\% & '
-                   f'{100*(ce-ch):+.1f} pts \\\\')
+        row = (f'{name} & {bag.shape[0]} & {100*dj:.1f}\\% & '
+               f'{100*ch:.1f}\\% & {100*ce:.1f}\\% & '
+               f'{100*(ce-ch):+.1f} pts')
         summary[name] = {'bags': int(bag.shape[0]), 'disjointness': dj,
                          'chance': ch, 'ceiling': ce, 'headroom': ce - ch}
-        DATASET_CEILING[KEY_FOR_DISPLAY[name]] = ce
+        if r1:
+            from miml_clam.metrics.instance_metrics import label_agnostic_auc_bounds
+            lo, hi = label_agnostic_auc_bounds(inst, bag, mask)
+            row += f' & {hi:.3f}'
+            summary[name].update(auc_pool_lower=lo, auc_pool_ceiling=hi)
+        out.append(row + ' \\\\')
+        keymap = R1_KEY_FOR_DISPLAY if REV == 'r1' else KEY_FOR_DISPLAY
+        DATASET_CEILING[keymap[name]] = ce
     out += ['\\bottomrule', '\\end{tabular}']
     return '\n'.join(out), summary
 
@@ -202,8 +254,7 @@ def correlations(cells, datasets):
         for label, sel in [('all_methods', ms), ('label_conditional', cond)]:
             if len(sel) < 3:
                 continue
-            ap = [cells[(m, ds)]['bag_metrics_mean_std']['AveragePrecision'][0]
-                  for m in sel]
+            ap = [bag_ap(cells[(m, ds)]) for m in sel]
             p1 = [cells[(m, ds)]['instance_metrics_mean_std']['InstP@1'][0]
                   for m in sel]
             r, p = spearmanr(ap, p1)
@@ -236,8 +287,18 @@ def correlations(cells, datasets):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--outdir', default='paper_pr/tables_attr')
+    ap.add_argument('--results', default=None)
+    ap.add_argument('--rev', default='v1', choices=['v1', 'r1'])
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
+    global RESULTS, REV, DISPLAY, ORDER, DS_ORDER, DS_DISPLAY
+    REV = args.rev
+    if REV == 'r1':
+        RESULTS = args.results or 'results/instance_level_r1'
+        DISPLAY, ORDER = R1_DISPLAY, R1_ORDER
+        DS_ORDER, DS_DISPLAY = R1_DS_ORDER, R1_DS_DISPLAY
+    elif args.results:
+        RESULTS = args.results
 
     cells = load_cells()
     datasets = [d for d in DS_ORDER if any(k[1] == d for k in cells)]

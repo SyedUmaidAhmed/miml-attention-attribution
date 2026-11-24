@@ -136,8 +136,10 @@ def patch_labels_from_segmentation(image_id, devkit=None, grid=GRID,
     """(grid*grid, 20) binary patch labels from the pixel-exact mask.
 
     A patch is labelled c when at least `thresh` of its non-void pixels carry
-    class c. Palette index 0 is background and 255 is the void/boundary band;
-    both are excluded from the denominator. Returns None if no mask exists.
+    class c. Palette index 255 (the void/boundary band) is excluded from the
+    denominator; background pixels (index 0) are counted in it, so the
+    denominator is every non-void pixel of the patch. Returns None if no mask
+    exists.
     """
     from PIL import Image
 

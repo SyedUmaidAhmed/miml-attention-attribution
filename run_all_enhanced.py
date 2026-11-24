@@ -176,6 +176,20 @@ def _make_configs():
     })
     configs['letter_carroll'] = c
 
+    # HJA Bird Song (Briggs et al., KDD 2012): DD format with per-instance
+    # labels (YR), 548 bags, 38-d, 13 species. Built by
+    # datasets/build_hja_birdsong.py. Same protocol as the letter datasets
+    # (seed-42 permutation, 5 folds, 7 seeds). Not the 257-bag birdsong.mat.
+    c = _base_config()
+    c.update({
+        'data_path': os.path.join(DATA_DIR, 'hja_birdsong.mat'),
+        'cv_mat_path': None,
+        'dataset': 'hja_birdsong', 'dataset_format': 'dd',
+        'fixed_bag_size': False,
+        'default_folds': 5,
+    })
+    configs['hja_birdsong'] = c
+
     # --- New MIML datasets ---
 
     # Birdsong: standard format, 10-fold, variable bag size, 19 labels

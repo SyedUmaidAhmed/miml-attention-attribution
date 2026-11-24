@@ -22,6 +22,10 @@ for f in glob.glob('results/instance_level/*__*.json'):
 
 AGNOSTIC = ['attnmil', 'gated_attn', 'transmil_lite']
 PARTITIONED = ['letter_frost', 'letter_carroll', 'mscv2']
+# The four public DD-format datasets with native instance labels share the
+# classical protocol; Bird Song is the one on which the partition fails.
+CLASSICAL = PARTITIONED + ['hja_birdsong']
+CONDITIONAL = ['dsmil', 'ml_decoder', 'q2l', 'hap_only']
 fails = []
 
 
@@ -136,8 +140,9 @@ for ds in PARTITIONED:
 ok = all(CELLS[(m, ds)]['num_folds'] == 5
          and len(CELLS[(m, ds)]['instance_per_model']) == 35
          and CELLS[(m, ds)]['ensemble_seeds'] == [42, 123, 456, 789, 1024, 2048, 3072]
-         for (m, ds) in CELLS if ds in PARTITIONED)
-check('classical cells: 5 folds x 7 seeds = 35 models', ok, '')
+         for (m, ds) in CELLS if ds in CLASSICAL)
+check('classical cells (incl. Bird Song): 5 folds x 7 seeds = 35 models',
+      ok and all((m, 'hja_birdsong') in CELLS for m in AGNOSTIC + CONDITIONAL), '')
 ok = all(CELLS[(m, ds)]['num_folds'] == 3
          and len(CELLS[(m, ds)]['instance_per_model']) == 3
          and CELLS[(m, ds)]['ensemble_seeds'] is None
@@ -184,9 +189,88 @@ except Exception as exc:                                     # pragma: no cover
     check('TransMIL importable', False, f'{exc}')
 tex = 'paper_attribution/tables/attribution_stats.tex'
 if os.path.exists(tex):
-    n = sum(1 for line in open(tex) if line.rstrip().endswith('\\\\')
-            and '$>$' in line)
-    check('stats appendix lists 63 pairwise tests', n == 63, n)
+    rows = [line for line in open(tex) if line.rstrip().endswith('\\\\')
+            and (' $>$ ' in line or ' vs ' in line)]
+    n_vs = sum(' vs ' in line for line in rows)
+    check('stats appendix: 84 comparisons, 9 tied, 75 tested',
+          len(rows) == 84 and n_vs == 9, f'{len(rows)} rows, {n_vs} tied')
+
+# ---------------------------------------------------------------------------
+# Claims added in the 2026-10-05 pre-submission review (DMKD build).
+# ---------------------------------------------------------------------------
+check('42 result cells', len(CELLS) == 42, len(CELLS))
+n_total = sum(len(d['instance_per_model']) for d in CELLS.values())
+check('1,022 trained models in total', n_total == 1022, n_total)
+
+def ap(m, ds):
+    return CELLS[(m, ds)]['bag_metrics_mean_std']['AveragePrecision'][0]
+
+def same_order(ds):
+    by_ap = sorted(CONDITIONAL, key=lambda m: -ap(m, ds))
+    by_p1 = sorted(CONDITIONAL, key=lambda m: -im(m, ds, 'InstP@1'))
+    return by_ap == by_p1
+
+for ds in ['letter_frost', 'letter_carroll']:
+    check(f'bag AP orders label-conditional methods as P@1 on {ds}',
+          same_order(ds), '')
+for ds in ['mscv2', 'hja_birdsong', 'voc2012seg', 'voc2012segml']:
+    check(f'bag AP order differs from P@1 order on {ds}', not same_order(ds), '')
+
+mags = []
+for ds in CLASSICAL + ['voc2012seg', 'voc2012segml']:
+    sa = max(ap(m, ds) for m in CONDITIONAL) - min(ap(m, ds) for m in CONDITIONAL)
+    sp = (max(im(m, ds, 'InstP@1') for m in CONDITIONAL)
+          - min(im(m, ds, 'InstP@1') for m in CONDITIONAL))
+    mags.append(sp / sa)
+check('magnification spans 5.3 to 22.6',
+      abs(min(mags) - 5.3) < 0.05 and abs(max(mags) - 22.6) < 0.05,
+      f'{min(mags):.1f}..{max(mags):.1f}')
+
+d_ag = [100 * (im(m, 'hja_birdsong', 'InstP@1') - im(m, 'hja_birdsong', 'ChanceP@1'))
+        for m in AGNOSTIC]
+check('Bird Song: label-agnostic +13.3/+15.4/+14.4 over chance',
+      [round(x, 1) for x in d_ag] == [13.3, 15.4, 14.4], [round(x, 1) for x in d_ag])
+try:
+    from miml_clam.metrics.instance_metrics import (
+        chance_precision_at_1, label_agnostic_ceiling, witness_disjointness)
+    from analysis.instance_level_stats import load_padded
+    _, inst, bag, mask = load_padded('hja_birdsong')
+    ch = chance_precision_at_1(inst, bag, mask)
+    ce = label_agnostic_ceiling(inst, bag, mask)
+    orc = all((inst[i][~mask[i]].any(0) == bag[i]).all() for i in range(len(bag)))
+    check('Bird Song: 548 bags, OR-consistent, disjoint, chance 24.5 / ceiling 48.4',
+          bag.shape[0] == 548 and orc
+          and abs(witness_disjointness(inst, bag, mask) - 1.0) < 1e-12
+          and round(100 * ch, 1) == 24.5 and round(100 * ce, 1) == 48.4,
+          f'{bag.shape[0]} bags, {100*ch:.1f} / {100*ce:.1f}')
+    check('Bird Song: label-agnostic models below the ceiling',
+          all(im(m, 'hja_birdsong', 'InstP@1') < ce for m in AGNOSTIC), '')
+except Exception as exc:                                     # pragma: no cover
+    check('Bird Song data readable', False, f'{exc}')
+
+hours = {k: 0.0 for k in ('all', 'voc', 'bird', 'tvoc')}
+for (m, ds), d in CELLS.items():
+    w = d['wall_clock_seconds'] / 3600
+    hours['all'] += w
+    if ds.startswith('voc'):
+        hours['voc'] += w
+        if m == 'transmil_lite':
+            hours['tvoc'] += w
+    if ds == 'hja_birdsong':
+        hours['bird'] += w
+check('compute: 27.0 h total, 20.2 VOC (16.1 TransMIL), 4.2 Bird Song',
+      [round(hours[k], 1) for k in ('all', 'voc', 'tvoc', 'bird')]
+      == [27.0, 20.2, 16.1, 4.2], {k: round(v, 1) for k, v in hours.items()})
+
+st = json.load(open('paper_attribution/tables/attribution_stats.json'))['per_dataset']
+sig = [c for ds in CLASSICAL for c in st[ds]['comparisons'] if c.get('significant')]
+check('every significant comparison holds in 5/5 folds',
+      all(c['folds_same_sign'] == 5 for c in sig), f'{len(sig)} significant')
+mq = [c for ds in CLASSICAL for c in st[ds]['comparisons']
+      if {c['a'], c['b']} == {'ml_decoder', 'q2l'}]
+check('ML-Decoder > Q2L significant on all four classical benchmarks',
+      len(mq) == 4 and all(c['a'] == 'ml_decoder' and c['significant'] for c in mq),
+      [round(100 * c['mean_diff'], 1) for c in mq])
 
 print()
 if fails:

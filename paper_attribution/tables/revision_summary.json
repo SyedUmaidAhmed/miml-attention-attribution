@@ -1,0 +1,487 @@
+{
+ "n_cells": 80,
+ "hap_alpha": {
+  "hap_only__letter_frost": {
+   "mean": 0.499105944443535,
+   "min": 0.450129896402359,
+   "max": 0.5496253967285156,
+   "sd": 0.01487709364406575
+  },
+  "hap_only__letter_carroll": {
+   "mean": 0.4992899659570757,
+   "min": 0.44759228825569153,
+   "max": 0.5464102625846863,
+   "sd": 0.0169262034732633
+  },
+  "hap_only__mscv2": {
+   "mean": 0.5111505229280602,
+   "min": 0.426543653011322,
+   "max": 0.5868485569953918,
+   "sd": 0.030023670593700473
+  },
+  "hap_only__hja_birdsong": {
+   "mean": 0.5299460082918733,
+   "min": 0.4575715959072113,
+   "max": 0.5806968808174133,
+   "sd": 0.021465118196234246
+  },
+  "hap_soft_only__letter_frost": {
+   "mean": 0.9999545812606812,
+   "min": 0.9999545812606812,
+   "max": 0.9999545812606812,
+   "sd": 0.0
+  },
+  "hap_soft_only__letter_carroll": {
+   "mean": 0.9999545812606812,
+   "min": 0.9999545812606812,
+   "max": 0.9999545812606812,
+   "sd": 0.0
+  },
+  "hap_soft_only__mscv2": {
+   "mean": 0.9999545812606812,
+   "min": 0.9999545812606812,
+   "max": 0.9999545812606812,
+   "sd": 0.0
+  },
+  "hap_soft_only__hja_birdsong": {
+   "mean": 0.9999545812606812,
+   "min": 0.9999545812606812,
+   "max": 0.9999545812606812,
+   "sd": 0.0
+  },
+  "hap_hard_only__letter_frost": {
+   "mean": 4.539787187241018e-05,
+   "min": 4.539787187241018e-05,
+   "max": 4.539787187241018e-05,
+   "sd": 0.0
+  },
+  "hap_hard_only__letter_carroll": {
+   "mean": 4.539787187241018e-05,
+   "min": 4.539787187241018e-05,
+   "max": 4.539787187241018e-05,
+   "sd": 0.0
+  },
+  "hap_hard_only__mscv2": {
+   "mean": 4.539787187241018e-05,
+   "min": 4.539787187241018e-05,
+   "max": 4.539787187241018e-05,
+   "sd": 0.0
+  },
+  "hap_hard_only__hja_birdsong": {
+   "mean": 4.539787187241018e-05,
+   "min": 4.539787187241018e-05,
+   "max": 4.539787187241018e-05,
+   "sd": 0.0
+  },
+  "hap_k1__letter_frost": {
+   "mean": 0.5137317339142601,
+   "min": 0.48135024309158325,
+   "max": 0.5534162521362305,
+   "sd": 0.012367838871800789
+  },
+  "hap_k1__letter_carroll": {
+   "mean": 0.5215189638046118,
+   "min": 0.4832113981246948,
+   "max": 0.566227376461029,
+   "sd": 0.014481957629633405
+  },
+  "hap_k1__mscv2": {
+   "mean": 0.5765629972730364,
+   "min": 0.4992108941078186,
+   "max": 0.6534597873687744,
+   "sd": 0.029577768657822072
+  },
+  "hap_k1__hja_birdsong": {
+   "mean": 0.5700877268890758,
+   "min": 0.4939739406108856,
+   "max": 0.6402266621589661,
+   "sd": 0.029058651462450964
+  },
+  "hap_k5__letter_frost": {
+   "mean": 0.4974018298662626,
+   "min": 0.45045459270477295,
+   "max": 0.55290687084198,
+   "sd": 0.017207959659899612
+  },
+  "hap_k5__letter_carroll": {
+   "mean": 0.4953630367150674,
+   "min": 0.44303223490715027,
+   "max": 0.5559247136116028,
+   "sd": 0.0189993339903555
+  },
+  "hap_k5__mscv2": {
+   "mean": 0.5035991595768781,
+   "min": 0.41957712173461914,
+   "max": 0.5992665886878967,
+   "sd": 0.031370891930634304
+  },
+  "hap_k5__hja_birdsong": {
+   "mean": 0.5147360274424919,
+   "min": 0.44935712218284607,
+   "max": 0.5912806391716003,
+   "sd": 0.021842697483209918
+  }
+ },
+ "ensemble_minus_model_ap": {
+  "attnmil__letter_frost": 0.054936799123047386,
+  "attnmil__letter_carroll": 0.07875351200219216,
+  "attnmil__mscv2": 0.03856117292652472,
+  "attnmil__hja_birdsong": 0.05252624705278708,
+  "attnmil__voc2012seg_nc": 0.010785633632335312,
+  "attnmil__voc2012segml_nc": 0.02464019434601805,
+  "gated_attn__letter_frost": 0.044349331977928896,
+  "gated_attn__letter_carroll": 0.05225971738570678,
+  "gated_attn__mscv2": 0.02788431746096731,
+  "gated_attn__hja_birdsong": 0.0339919163526633,
+  "gated_attn__voc2012seg_nc": 0.00946782707666649,
+  "gated_attn__voc2012segml_nc": 0.020147050738775096,
+  "transmil_lite__letter_frost": 0.07423769732713137,
+  "transmil_lite__letter_carroll": 0.07684193636907599,
+  "transmil_lite__mscv2": 0.028916293048892983,
+  "transmil_lite__hja_birdsong": 0.03636960480178042,
+  "transmil_lite__voc2012seg_nc": 0.011094109678782327,
+  "transmil_lite__voc2012segml_nc": 0.011986505227328581,
+  "dsmil_orig__letter_frost": 0.04865665888299886,
+  "dsmil_orig__letter_carroll": 0.049903860801640776,
+  "dsmil_orig__mscv2": 0.036664063447263584,
+  "dsmil_orig__hja_birdsong": 0.02375866179109931,
+  "dsmil_orig__voc2012seg_nc": 0.014744758212825726,
+  "dsmil_orig__voc2012segml_nc": 0.009674231842937253,
+  "dsmil__letter_frost": 0.03893759104601624,
+  "dsmil__letter_carroll": 0.048228697133496534,
+  "dsmil__mscv2": 0.028263666249435437,
+  "dsmil__hja_birdsong": 0.0279591811275951,
+  "dsmil__voc2012seg_nc": 0.011962888612801259,
+  "dsmil__voc2012segml_nc": 0.019810495859316157,
+  "ml_decoder__letter_frost": 0.03262088141730968,
+  "ml_decoder__letter_carroll": 0.024509325633572554,
+  "ml_decoder__mscv2": 0.029607873972134158,
+  "ml_decoder__hja_birdsong": 0.012037715815566341,
+  "ml_decoder__voc2012seg_nc": 0.012910541338110981,
+  "ml_decoder__voc2012segml_nc": 0.014341133130055472,
+  "q2l__letter_frost": 0.04064268533737436,
+  "q2l__letter_carroll": 0.04382727205795944,
+  "q2l__mscv2": 0.02990204979147837,
+  "q2l__hja_birdsong": 0.01797953139040953,
+  "q2l__voc2012seg_nc": 0.02244113064585107,
+  "q2l__voc2012segml_nc": 0.018788929130883814,
+  "hap_only__letter_frost": 0.04363821532454215,
+  "hap_only__letter_carroll": 0.05110890635727461,
+  "hap_only__mscv2": 0.033537258924776436,
+  "hap_only__hja_birdsong": 0.02434140431191556,
+  "hap_only__voc2012seg_nc": 0.009937735318281016,
+  "hap_only__voc2012segml_nc": 0.013241283947006077
+ },
+ "within_architecture_spearman_ap_p1": {
+  "dsmil__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.04539385960180157,
+   "p": 0.8117335657722273
+  },
+  "q2l__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.44903680512799427,
+   "p": 0.0068131009986423215
+  },
+  "hap_only__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.11604768091199781,
+   "p": 0.5067784131796502
+  },
+  "attnmil__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.7414905450500555,
+   "p": 2.759072489980295e-06
+  },
+  "ml_decoder__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.18139329640437343,
+   "p": 0.3374049443353664
+  },
+  "hap_soft_only__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.02648171734582799,
+   "p": 0.8799721723035452
+  },
+  "hap_only__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.09800649105592862,
+   "p": 0.5754056064371489
+  },
+  "q2l__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.1776096325529939,
+   "p": 0.3477479139522799
+  },
+  "dsmil_orig__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.48726221238216155,
+   "p": 0.006314587136695869
+  },
+  "dsmil_orig__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.19497163714736437,
+   "p": 0.2616966422047646
+  },
+  "hap_only__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.3919316469323489,
+   "p": 0.019884530476814936
+  },
+  "dsmil_orig__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.07913719467547477,
+   "p": 0.6513491464234726
+  },
+  "transmil_lite__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.13064768710351804,
+   "p": 0.4913652898762718
+  },
+  "transmil_lite__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.1797952870502729,
+   "p": 0.34175021651053883
+  },
+  "ml_decoder__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.0449674311251234,
+   "p": 0.7975655265566515
+  },
+  "transmil_lite__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.1126071054172693,
+   "p": 0.5535451117053655
+  },
+  "q2l__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.1753253987932161,
+   "p": 0.35408326972524296
+  },
+  "dsmil__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.18300289456523217,
+   "p": 0.29268065819624517
+  },
+  "hap_k1__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.09329691317548967,
+   "p": 0.5939839925214754
+  },
+  "ml_decoder__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.1953338706155694,
+   "p": 0.2607939958484677
+  },
+  "dsmil__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.1297373109355765,
+   "p": 0.4575970617451912
+  },
+  "hap_k5__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.18827991682219347,
+   "p": 0.27874212532823983
+  },
+  "attnmil__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.547396542257019,
+   "p": 0.0017437629106307982
+  },
+  "dsmil__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.27188786462602804,
+   "p": 0.14609695361201452
+  },
+  "hap_soft_only__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.286394869073399,
+   "p": 0.0953263811201059
+  },
+  "gated_attn__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.30218069283944377,
+   "p": 0.10459311077008694
+  },
+  "dsmil__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.39118826068611356,
+   "p": 0.03254946602653982
+  },
+  "q2l__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.011766353946503683,
+   "p": 0.9465141682449599
+  },
+  "hap_soft_only__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.05294488422536187,
+   "p": 0.7626043973303706
+  },
+  "hap_k1__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.02492997198879552,
+   "p": 0.8869589500734796
+  },
+  "transmil_lite__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.2668070174663071,
+   "p": 0.12129410138467338
+  },
+  "ml_decoder__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.38544566518322226,
+   "p": 0.03542028596320182
+  },
+  "q2l__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.3794792274471862,
+   "p": 0.03861576328280729
+  },
+  "hap_only__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.042501113646784806,
+   "p": 0.8235376965405301
+  },
+  "hap_only__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.3432093652852098,
+   "p": 0.04354026148612896
+  },
+  "q2l__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.20592561917112587,
+   "p": 0.23530668360828388
+  },
+  "hap_hard_only__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.0026345166103172234,
+   "p": 0.9880162485726554
+  },
+  "dsmil_orig__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.2975415068839941,
+   "p": 0.08257955225304801
+  },
+  "dsmil__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.3409202333453197,
+   "p": 0.045053527011932444
+  },
+  "gated_attn__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.49655023837810697,
+   "p": 0.005253301185059252
+  },
+  "hap_hard_only__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.28293297919373284,
+   "p": 0.09957626183051049
+  },
+  "dsmil_orig__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.2500834368573286,
+   "p": 0.18257965668464132
+  },
+  "ml_decoder__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.2728385597659529,
+   "p": 0.14463639583147
+  },
+  "dsmil__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.49236588240429097,
+   "p": 0.002659767735230328
+  },
+  "ml_decoder__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.011912272006594829,
+   "p": 0.9458518406723257
+  },
+  "attnmil__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.2200222469410456,
+   "p": 0.2426901461679347
+  },
+  "attnmil__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.8832387951523459,
+   "p": 2.168936181788158e-12
+  },
+  "dsmil_orig__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.4641781648752626,
+   "p": 0.00497139322635675
+  },
+  "hap_k5__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.1511310319554642,
+   "p": 0.3861474658063121
+  },
+  "ml_decoder__mscv2": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.5050080660625229,
+   "p": 0.0019743371580663595
+  },
+  "hap_k5__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.16997129487567122,
+   "p": 0.3289793467886635
+  },
+  "gated_attn__voc2012segml_crop": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.09768580571172004,
+   "p": 0.6075713583865747
+  },
+  "hap_only__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": -0.16173526140155728,
+   "p": 0.3931819987987527
+  },
+  "hap_k5__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.36599201714516033,
+   "p": 0.030598816564555514
+  },
+  "hap_k1__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.41069645935747595,
+   "p": 0.01425838566116423
+  },
+  "hap_only__voc2012seg_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.22449660835324245,
+   "p": 0.23299952210398758
+  },
+  "hap_k1__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.09294517349386629,
+   "p": 0.5953819733637415
+  },
+  "q2l__letter_frost": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.2065004283916315,
+   "p": 0.23397342334873703
+  },
+  "hap_hard_only__letter_carroll": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.028804935250425462,
+   "p": 0.8695286140615295
+  },
+  "gated_attn__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": 0.7069122504904799,
+   "p": 2.06677743054251e-06
+  },
+  "hap_soft_only__hja_birdsong": {
+   "n_models": 35,
+   "spearman_rho_fold_centred": -0.07983193277310925,
+   "p": 0.6484845413605438
+  },
+  "dsmil_orig__voc2012segml_nc": {
+   "n_models": 30,
+   "spearman_rho_fold_centred": 0.2004449388209121,
+   "p": 0.28820971103866927
+  }
+ }
+}
