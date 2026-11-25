@@ -18,6 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 R = 'results/instance_level_r1'
 T = 'paper_attribution/tables'
+# The manuscript source is private: checks of its wording run only where it is present.
+PAPER = os.path.exists('paper_attribution/main.tex')
 CELLS = {}
 for f in glob.glob(os.path.join(R, '*__*.json')):
     d = json.load(open(f))
@@ -158,8 +160,8 @@ check('analysis nec.', 'DSMIL vs DSMIL-sep MSRC: 27.4, p 3.4e-4, delta 0.998',
       c['a'] == 'dsmil_orig' and r1(100 * c['mean_diff']) == 27.4
       and float(f"{c['p_fold_nb_holm']:.1e}") == 3.4e-4 and round(c['cliffs_delta'], 3) == 0.998)
 ap_o, ap_s = im('dsmil_orig', 'mscv2', 'BagAveragePrecision'), im('dsmil', 'mscv2', 'BagAveragePrecision')
-check('abstract', 'DSMIL pair: 3 pts AP (0.773 vs 0.743), 27 pts attribution',
-      [round(ap_o, 3), round(ap_s, 3), round(100 * (ap_o - ap_s))] == [0.773, 0.743, 3])
+check('analysis nec.', 'DSMIL pair: 3.1 pts AP (0.773 vs 0.743)',
+      [round(ap_o, 3), round(ap_s, 3), r1(100 * (ap_o - ap_s))] == [0.773, 0.743, 3.1])
 
 # ---- label-query designs ----------------------------------------------------
 mla = [im('ml_decoder', d, 'InstAUCPooled') for d in CLS]
@@ -449,8 +451,9 @@ if all((m, S) in CELLS for m in MAIN) and all((m, V) in CELLS for m in MAIN):
     nall = sum(len(c['instance_per_model']) for c in CELLS.values())
     check('setup', 'models: 1,120 classical, 480 VOC, 1,600 main, 2,480 total',
           (ncls, nmain - ncls, nmain, nall) == (1120, 480, 1600, 2480), (ncls, nmain - ncls, nmain, nall))
-    cap = open('paper_attribution/figures/overview_caption.tex').read()
-    check('figure 1', 'caption model count = 1,600', '$1{,}600$' in cap and '1{,}022' not in cap)
+    if PAPER:
+        cap = open('paper_attribution/figures/overview_caption.tex').read()
+        check('figure 1', 'caption model count = 1,600', '$1{,}600$' in cap and '1{,}022' not in cap)
     devs = sorted({(m, d) for (m, d), c in CELLS.items() if not str(c.get('device', '')).startswith('cpu')})
     check('setup', 'one platform: every r1 cell trained on CPU', not devs, devs)
 
@@ -479,16 +482,110 @@ check('setup', 'CUDA check: 6 cells; 5 within 1.6 P@1 / 0.001 AP; DSMIL-sep 5.1,
       and all(_sep_cu < im(m, 'voc2012seg_nc') + _cx[m][0] / 100 for m in _st)
       and min(_st + ['dsmil'], key=lambda m: im(m, 'voc2012seg_nc')) == 'dsmil', {k: v[:2] for k, v in _cx.items()})
 
+import re as _re
+# ---- defects found by the explainer audit (2026-11-25), pinned so they stay fixed --
+_pool = lambda m: [x['InstAUCPooled'] for x in CELLS[(m, 'mscv2')]['instance_per_model']]
+check('analysis nec.', 'DSMIL-sep MSRC: pooled AUC 0.460, 31/35 models below 0.5; DSMIL 0.677, 0/35',
+      [round(np.mean(_pool('dsmil')), 3), sum(v < 0.5 for v in _pool('dsmil')),
+       round(np.mean(_pool('dsmil_orig')), 3), sum(v < 0.5 for v in _pool('dsmil_orig'))] == [0.46, 31, 0.677, 0])
+_gap = max(100 * (max(im(m, d, 'BagAveragePrecision') for m in AG) - min(im(m, d, 'BagAveragePrecision') for m in AG))
+           for d in PART)
+check('analysis 9.1', 'label-agnostic bag AP differs by up to 3.5 pts on partitioned data', r1(_gap) == 3.5, _gap)
+DS6 = CLS + ['voc2012seg_nc', 'voc2012segml_nc']
+_span = lambda d, k: 100 * (max(im(m, d, k) for m in COND) - min(im(m, d, k) for m in COND))
+_ma, _mi = [_span(d, 'BagMacroF1') for d in DS6], [_span(d, 'BagMicroF1') for d in DS6]
+check('response R2.2', 'per-model F1 spans: Macro 2.6..8.9, Micro 2.3..4.9',
+      [r1(min(_ma)), r1(max(_ma)), r1(min(_mi)), r1(max(_mi))] == [2.6, 8.9, 2.3, 4.9], (_ma, _mi))
+_top = sum(max(COND, key=lambda m: im(m, d, 'BagAveragePrecision')) != max(COND, key=lambda m: im(m, d))
+           for d in DS6)
+check('analysis 9.8', 'top bag-AP method is not the top attributor on 4 of 6 benchmarks', _top == 4, _top)
+_n = {'letter_frost': (144, 5), 'letter_carroll': (166, 5), 'mscv2': (591, 5), 'hja_birdsong': (548, 5),
+      'voc2012seg_nc': (2273, 10), 'voc2012segml_nc': (660, 10)}
+_ds = {r['name']: (r['bags'], r['folds']) for r in json.load(open(os.path.join(T, 'dataset_stats.json')))}
+_nb = [_ds.get(k) for k in ('Letter Frost', 'Letter Carroll', 'MSRC~v2', 'Bird Song', 'VOC-Patch-Seg', 'VOC-Patch-Seg-ML')]
+check('setup 7.1', 'never-tested remainder n mod k: 4,1,1,3,3,0 (bag counts and folds from dataset_stats)',
+      _nb == list(_n.values()) and [n % k for n, k in _n.values()] == [4, 1, 1, 3, 3, 0]
+      and all(len(CELLS[('attnmil', d)]['instance_per_model']) == k * (7 if k == 5 else 3) for d, (n, k) in _n.items()), _nb)
+_figs = [] if not PAPER else ['paper_attribution/figures/ap_vs_attribution.pdf', 'paper_attribution/figures/ceiling_vs_achieved.pdf',
+         'paper_attribution/figures/overview.pdf']
+_newest = max(os.path.getmtime(f) for f in glob.glob(os.path.join(R, '*__*.json')))
+if PAPER:
+  check('figures', 'every data figure is newer than every result file',
+      all(os.path.getmtime(f) >= _newest for f in _figs), [os.path.basename(f) for f in _figs if os.path.getmtime(f) < _newest])
+try:
+    from datasets.voc_miml import DEFAULT_OUT_DIR as _D
+    from miml_clam.metrics.instance_metrics import (label_agnostic_auc_bounds, chance_precision_at_1,
+                                                    label_agnostic_ceiling)
+    _att = []
+    for stem in ('voc2012seg_nc', 'voc2012segml_nc'):
+        z = np.load(os.path.join(_D, f'{stem}_patch_gt.npz'), allow_pickle=True)
+        ps, bl = z['patch_seg'].astype(bool), z['bag_labels'].astype(bool)
+        lo, hi = label_agnostic_auc_bounds(ps, bl)
+        num = den = 0.0                          # pooled AUC of the coverage ranking
+        for i in range(bl.shape[0]):
+            n_i = ps.shape[1]
+            ls = [l for l in np.where(bl[i])[0] if 0 < ps[i, :, l].sum() < n_i]
+            if not ls:
+                continue
+            W = ps[i][:, ls]
+            kap = W.sum(1)
+            for l in range(len(ls)):
+                w, nw = kap[W[:, l]], kap[~W[:, l]]
+                num += (w[:, None] > nw[None, :]).sum() + 0.5 * (w[:, None] == nw[None, :]).sum()
+                den += len(w) * len(nw)
+        _att.append((round(hi, 4), round(num / den, 4), round(lo + hi, 6)))
+    check('theory remark', 'Gamma_AUC attained by the coverage ranking; lower bound = 1 - Gamma_AUC (VOC x2)',
+          all(a == b and c == 1.0 for a, b, c in _att), _att)
+    z = np.load(os.path.join(_D, 'voc2012seg_nc_patch_gt.npz'), allow_pickle=True)
+    ps, bl = z['patch_seg'].astype(bool), z['bag_labels'].astype(bool)
+    keep = []
+    for i in range(bl.shape[0]):
+        if bl[i].sum() < 2:
+            continue
+        ws = [set(np.where(ps[i, :, l])[0]) for l in np.where(bl[i])[0]]
+        ws = [w for w in ws if 0 < len(w) < ps.shape[1]]
+        if len(ws) >= 2 and all(not (ws[a] & ws[b]) for a in range(len(ws)) for b in range(a + 1, len(ws))):
+            keep.append(i)
+    ch = 100 * chance_precision_at_1(ps[keep], bl[keep], None)
+    ce = 100 * label_agnostic_ceiling(ps[keep], bl[keep], None)
+    check('theory 4.2', 'VOC-Seg multi-label-disjoint bags: 95, chance 22.58, ceiling 47.74, +25.2',
+          [len(keep), round(ch, 2), round(ce, 2), r1(ce - ch)] == [95, 22.58, 47.74, 25.2], (len(keep), ch, ce))
+except Exception as exc:                                       # pragma: no cover
+    check('theory', 'GT-based checks computable', False, exc)
+_RESP = 'paper_attribution/revision_dmkd_r1/response/response.tex'
+if os.path.exists(_RESP):                      # the letter is not part of the public mirror
+    _resp = open(_RESP).read()
+    _resp = '\n'.join(l for l in _resp.splitlines() if not l.lstrip().startswith('%'))
+    _bad = [p for p in (r'mean AUC \$0\.681', r'AUC 0\.452', r'34 of 35', r'Section~4\.4', r'Measuring where a model looks',
+                        r'\$2\.4\$ to \$10\.3', r'more than three hours', r'bound is loose because', r'checks every\s+numerical')
+            if _re.search(p, _resp)]
+_sig = {d: sorted({c['folds_same_sign'] for c in ST[d]['comparisons'] if c['significant_fold']}) for d in DS6}
+check('appendix C', '28 comparisons per benchmark; significant ones keep sign in 5/5 (classical), >=9/10 (VOC)',
+      all(len(ST[d]['comparisons']) == 28 for d in DS6) and all(_sig[d] == [5] for d in CLS)
+      and all(min(_sig[d]) >= 9 for d in DS6[4:]), _sig)
+if PAPER:
+    _hp = open(os.path.join(T, 'hyperparams.tex')).read()
+    check('appendix A', 'Table 9: attention width row excludes DSMIL (official DSMIL q-dim 128)',
+          'DSMIL-sep, HAP; DSMIL uses $128$' in _hp and "q_dim=128" in open('baselines/dsmil_orig.py').read(), '')
+if os.path.exists(_RESP):
+    check('response', 'letter free of the corrected values (AUC averages, F1 spans, section refs, ...)', not _bad, _bad)
+
 # ---- stale v1 phrases (captions and prose are not otherwise checked) --------------
 import re as _re
-_src = ''.join(open(f).read() for f in glob.glob('paper_attribution/sections/*.tex')
-               + ['paper_attribution/main.tex', 'paper_attribution/figures/overview_caption.tex'])
-_src = '\n'.join(l for l in _src.splitlines() if not l.lstrip().startswith('%'))
-_stale = [pat for pat in (r'seven architectures', r'\$3\$ of a VOC', r'VOC-Patch cells hold three',
-                          r'1\{,\}022', r'one to two minutes', r'R1-VOC', r'PENDING',
-                          r'six baseline', r'\$42\$ stored', r'two VOC-Patch feature files')
-          if _re.search(pat, _src)]
-check('manuscript', 'no stale v1 phrases (seven archs, 3-model VOC, 1,022, ...)', not _stale, _stale)
+if PAPER:
+    _src = ''.join(open(f).read() for f in glob.glob('paper_attribution/sections/*.tex')
+                   + ['paper_attribution/main.tex', 'paper_attribution/figures/overview_caption.tex'])
+    _src = '\n'.join(l for l in _src.splitlines() if not l.lstrip().startswith('%'))
+    _stale = [pat for pat in (r'seven architectures', r'\$3\$ of a VOC', r'VOC-Patch cells hold three',
+                              r'1\{,\}022', r'one to two minutes', r'R1-VOC', r'PENDING',
+                              r'six baseline', r'\$42\$ stored', r'two VOC-Patch feature files',
+                              r'factor of \$5\$ to \$23\$', r'\$3\$ on VOC-Patch', r'up to \$7\.6\$',
+                              r'standard ImageNet preprocessing', r'four label-conditional', r'need not be attainable',
+                              r'attributes weakly on small bags', r'reported attribution AUC is the mean',
+                              r'\$34\$ of its \$35\$', r'Every table and figure is generated',
+                              r'four benchmarks that support inference', r'over the \$21\$ comparisons', r'every numerical claim')
+              if _re.search(pat, _src)]
+    check('manuscript', 'no stale v1 phrases (seven archs, 3-model VOC, 1,022, ...)', not _stale, _stale)
 
 # ---- crop effect (analysis voc-sensitivity, R1.4b) ------------------------------
 if all((m, 'voc2012segml_crop') in CELLS for m in MAIN):

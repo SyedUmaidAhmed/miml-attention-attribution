@@ -183,8 +183,8 @@ def fig_ceiling(data, geom, path):
 def fig_slopes(data, geom, path):
     """Bag AP beside attribution P@1, one slopegraph per benchmark.
 
-    Crossing lines are rank inversions between the two axes; the ratio of the
-    two spans printed under each panel is the magnification quoted in the text.
+    Crossing lines are rank inversions between the two axes; the two spans of
+    the label-conditional methods are printed under each panel.
     """
     datasets = [d for d in DS_ORDER if d in data]
     ncol = 3 if len(datasets) > 3 else len(datasets)
@@ -235,10 +235,9 @@ def fig_slopes(data, geom, path):
                 va='top', fontsize=7, color='#444444')
         ax.text(1, 1.0, f'{100*phi:.1f}', transform=ax.transAxes, ha='right',
                 va='bottom', fontsize=7, color='#444444')
-        mag = stats[ds][2]
-        ax.text(0.5, -0.26, '%.1f $\\rightarrow$ %.1f pts%s'
-                % (span_ap, span_p1,
-                   '' if mag is None else '  ($\\times$%.1f)' % mag),
+        # Spans only: the revision no longer reports their ratio (R1.5d).
+        ax.text(0.5, -0.26, 'AP span %.1f, P@1 span %.1f pts'
+                % (span_ap, span_p1),
                 transform=ax.transAxes, ha='center', fontsize=7.5,
                 color='#222222')
 

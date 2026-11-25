@@ -141,7 +141,7 @@ def dataset_table(cells):
 HP_ROWS = [
     ('Embedding width $D$', 'embed_dim', '{}'),
     ('Embedding MLP layers', 'embedding_layers', '{}'),
-    ('Attention width $D\'$ (AB-MIL, gated, DSMIL, HAP)', 'attn_dim', '{}'),
+    ('Attention width $D\'$ (AB-MIL, gated, DSMIL-sep, HAP; DSMIL uses $128$)', 'attn_dim', '{}'),
     ('Attention heads (TransMIL, ML-Decoder, Q2L, HAP)', 'nhead', '{}'),
     ('Feed-forward width', 'ff_dim', '{}'),
     ('Encoder layers (TransMIL, HAP)', 'transformer_layers', '{}'),

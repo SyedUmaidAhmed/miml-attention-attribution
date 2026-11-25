@@ -1,7 +1,7 @@
-# Verification report: DMKD revision 1 (release v1.1)
+# Verification report: release v1.1
 
-Generated 2026-11-24 22:09 by `python3 analysis/verify_paper_claims_r1.py`.
-Every numerical claim of the revised manuscript is re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU) and the generated analysis files in `paper_attribution/tables/`; the run exits non-zero if any check fails.
+Generated 2026-11-25 11:06 by `python3 analysis/verify_paper_claims_r1.py` (104 checks).
+The reported numbers are re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU), the generated analysis files in `paper_attribution/tables/` and the VOC-Patch ground truth; the run exits non-zero if any check fails.
 
 ```
 Verifying the revised manuscript against results/instance_level_r1 
@@ -27,7 +27,7 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [analysis nec.] DSMIL-sep MSRC P@1 30.1, chance 34.2, pooled 0.460, 34/35 AUC<0.5 
   PASS  [analysis nec.] AB-MIL > DSMIL-sep MSRC: 4.0, fold p 0.046, delta 0.74         
   PASS  [analysis nec.] DSMIL vs DSMIL-sep MSRC: 27.4, p 3.4e-4, delta 0.998           
-  PASS  [abstract    ] DSMIL pair: 3 pts AP (0.773 vs 0.743), 27 pts attribution      
+  PASS  [analysis nec.] DSMIL pair: 3.1 pts AP (0.773 vs 0.743)                        
   PASS  [analysis nec.] pooled AUC ML-Dec 0.735..0.808, Q2L 0.678..0.710               
   PASS  [analysis nec.] ML-Dec > Q2L +5.4 +9.0 +12.4 (p<=0.009) and +12.4 BS (p 0.15, 5/5) 
   PASS  [analysis nec.] ML-Dec > Q2L delta 0.57..0.94 on partitioned                   
@@ -91,12 +91,18 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [analysis bag] exactly one opposite pair: Seg DSMIL-sep vs Q2L, AP +1.0 p .017 / P@1 34.5 p 5.6e-9 [('voc2012seg_nc', 'dsmil', 'q2l')]
   PASS  [analysis bag] VOC spans: Seg-ML AP 2.4 / P@1 42.5; Seg AP 1.0 / P@1 35.9     [2.4, 42.5, 1.0, 35.9]
   PASS  [setup       ] models: 1,120 classical, 480 VOC, 1,600 main, 2,480 total      (1120, 480, 1600, 2480)
-  PASS  [figure 1    ] caption model count = 1,600                                    
   PASS  [setup       ] one platform: every r1 cell trained on CPU                     []
   PASS  [setup       ] compute: 48.4 h summed (16.0 classical, 32.4 VOC)              [48.44630278540982, 16.021961557269098]
   PASS  [setup       ] VOC per-model 0.7..9.1 min                                     [0.6817472700277964, 9.073870103359221]
   PASS  [setup       ] CUDA check: 6 cells; 5 within 1.6 P@1 / 0.001 AP; DSMIL-sep 5.1, weakest on both {'ml_decoder': (-0.057360797883898584, -0.0003333877874150959), 'dsmil_orig': (1.5317698452278372, 0.0006651097869508904), 'dsmil': (-5.056023115130492, -0.004645070900312742), 'gated_attn': (-0.22762810746886908, -9.402772839783857e-06), 'attnmil': (-0.4527916463207271, -0.00023369612241919135), 'hap_only': (0.18345986713544926, -0.0003270462879755298)}
-  PASS  [manuscript  ] no stale v1 phrases (seven archs, 3-model VOC, 1,022, ...)     []
+  PASS  [analysis nec.] DSMIL-sep MSRC: pooled AUC 0.460, 31/35 models below 0.5; DSMIL 0.677, 0/35 
+  PASS  [analysis 9.1] label-agnostic bag AP differs by up to 3.5 pts on partitioned data 3.5313798395607554
+  PASS  [response R2.2] per-model F1 spans: Macro 2.6..8.9, Micro 2.3..4.9             ([3.5225835453440157, 4.208307179738313, 8.862227841237335, 6.353132745107248, 2.624904904480807, 7.015595220544957], [2.9463357997317416, 4.370551600324724, 4.916460733980221, 4.424499581119202, 2.3413517931381134, 2.998723082377275])
+  PASS  [analysis 9.8] top bag-AP method is not the top attributor on 4 of 6 benchmarks 4
+  PASS  [setup 7.1   ] never-tested remainder n mod k: 4,1,1,3,3,0 (bag counts and folds from dataset_stats) [(144, 5), (166, 5), (591, 5), (548, 5), (2273, 10), (660, 10)]
+  PASS  [theory remark] Gamma_AUC attained by the coverage ranking; lower bound = 1 - Gamma_AUC (VOC x2) [(0.9557, np.float64(0.9557), 1.0), (0.8908, np.float64(0.8908), 1.0)]
+  PASS  [theory 4.2  ] VOC-Seg multi-label-disjoint bags: 95, chance 22.58, ceiling 47.74, +25.2 (95, 22.581658291457288, 47.73869346733669)
+  PASS  [appendix C  ] 28 comparisons per benchmark; significant ones keep sign in 5/5 (classical), >=9/10 (VOC) {'letter_frost': [5], 'letter_carroll': [5], 'mscv2': [5], 'hja_birdsong': [5], 'voc2012seg_nc': [9, 10], 'voc2012segml_nc': [9, 10]}
   PASS  [analysis voc] crop: AP +1.7..+2.9 for every arch; margins -0.5..+3.0         ([2.8952522671341074, 2.1291247674614766, 2.2306283717386077, 2.4416280338194984, 2.127659178713426, 2.1304259195049746, 1.9301454183332178, 1.729913914107839], [1.5093431146814833, 2.2598896923528162, 0.943803553988598, 2.8713575070373523, -0.4612054832384249, -0.11762745786804629, 1.4551145839164974, 3.0097542096507723])
   PASS  [analysis voc] crop: DSMIL-sep +3.2 (crop) / +2.8 (no crop)                   
   PASS  [analysis voc] crop: no significant comparison changes direction              0 mean-order swaps, 0 among fold-significant

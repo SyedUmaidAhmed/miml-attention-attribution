@@ -7,12 +7,12 @@ Code, benchmarks and stored results for
 > Are? An Attribution Protocol, a Ceiling Theorem, and a Segmentation-Derived Benchmark.*
 > Manuscript under review, 2026.
 
-**Release v1.1** accompanies the revised manuscript. Every table and figure is
+**Release v1.1** accompanies the revised manuscript. The analysis outputs are
 regenerated from the JSON result files in `results/instance_level_r1/`, and
-`analysis/verify_paper_claims_r1.py` re-derives every numerical claim of the
-text from them (97 checks). Release v1.0 and `results/instance_level/` are the
-submitted version, kept for the record; `paper_attribution/REVISION_CHANGELOG.md`
-lists what changed and why.
+`analysis/verify_paper_claims_r1.py` re-derives the reported numbers from them
+check by check (see `VERIFICATION_REPORT.md`). The manuscript itself is not
+distributed in this repository. Release v1.0 and `results/instance_level/` are
+the submitted version, kept for the record.
 
 ## What is here
 
@@ -28,6 +28,7 @@ lists what changed and why.
 | `results/instance_level/` | The 42 cells of the submitted version (v1.0). |
 | `analysis/` | Generators for every table and figure, `attribution_stats.py` (fold-level corrected resampled t-test, Holm), `attribution_extras.py` (post-hoc analyses that re-score every saved model), and the verifiers. |
 | `data/MIML-SELFVIT/` | The four classical benchmarks, and for VOC-Patch the fold permutations and patch labels with overlap fractions. Feature files are release assets. |
+| `paper_attribution/tables/` | Generated analysis outputs (JSON) that the verifier reads; the generators also write their tables and figures under `paper_attribution/`. |
 
 ## Setup
 
@@ -58,7 +59,7 @@ everything else reads the JSON files. To rebuild the feature files from
 PASCAL VOC 2012 instead: `python3 -m datasets.build_voc_patch_r1 --grid 4` and
 `--grid 8 --subset segml` (needs the VOC 2012 images; see the docstring). Set `MIML_DATA_DIR` to use a data directory elsewhere.
 
-## Reproducing the paper
+## Reproducing the results
 
 No training; a few minutes:
 
@@ -74,7 +75,6 @@ python3 analysis/make_setup_tables.py --rev r1 --stats $T/attribution_stats_r1.j
 python3 analysis/make_attribution_figures.py --rev r1 --outdir paper_attribution/figures
 python3 analysis/make_overview_figure.py --rev r1 --outdir paper_attribution/figures
 python3 analysis/verify_paper_claims_r1.py        # must print "all checks passed"
-cd paper_attribution && pdflatex main && bibtex main && pdflatex main && pdflatex main
 ```
 
 Retrain (cells are idempotent; `--rerun` overwrites):

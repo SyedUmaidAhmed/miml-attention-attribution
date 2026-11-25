@@ -228,9 +228,11 @@ def label_agnostic_auc_bounds(inst_labels, bag_labels, mask=None):
     c_kj (half their sum on a tie) of its c_jk + c_kj witness/non-witness
     comparisons. Hence
         sum min(c_jk, c_kj) / T  <=  pooled AUC  <=  sum max(c_jk, c_kj) / T,
-    T = sum (c_jk + c_kj) = the number of pooled comparisons. The upper bound
-    ignores transitivity, so it is loose but valid. Under a witness partition
-    c_jk = c_kj for every pair and both bounds equal 1/2.
+    T = sum (c_jk + c_kj) = the number of pooled comparisons. Both bounds are
+    attained: c_jk - c_kj = cov(j) - cov(k), where cov counts the scorable
+    labels an instance witnesses, so ranking by cov reaches the upper bound and
+    the reverse ranking the lower one (lower = 1 - upper). Under a witness
+    partition c_jk = c_kj for every pair and both bounds equal 1/2.
     """
     B, N, L = _to_numpy(inst_labels).shape
     dummy = np.zeros((B, L, N))
