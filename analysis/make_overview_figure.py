@@ -242,7 +242,7 @@ def panel_arch(ax):
     # -- label-conditional (bottom half)
     ax.text(0.02, 0.425, 'label-conditional', fontsize=8.0, fontweight='bold',
             va='center')
-    ax.text(0.02, 0.355, 'DSMIL, ML-Decoder, Q2L, HAP', fontsize=7.1,
+    ax.text(0.02, 0.355, 'DSMIL, DSMIL-sep, ML-Decoder, Q2L, HAP', fontsize=6.2,
             color=GRAY, va='center')
     attn_bars(ax, 0.06, 0.12, 0.32, 0.16, v1, hot=1)
     attn_bars(ax, 0.56, 0.12, 0.32, 0.16, v2, hot=3)
@@ -309,7 +309,7 @@ def panel_theory(ax):
 def panel_results(ax, data, geom):
     datasets = [d for d in DS_ORDER if data.get(d)]
     n_total = sum(v['n_models'] for d in datasets for v in data[d].values())
-    panel_tag(ax, 'd', f'{n_total} trained models (P@1, %)')
+    panel_tag(ax, 'd', f'{n_total:,} trained models (P@1, %)')
     ypos = {d: len(datasets) - 1 - i for i, d in enumerate(datasets)}
     sp = 0.105 if len(ORDER) == 7 else 0.09
     offsets = {m: (i - (len(ORDER) - 1) / 2) * sp for i, m in enumerate(ORDER)}
@@ -342,8 +342,10 @@ def panel_results(ax, data, geom):
     ax.text(99.5, yf - 1.50, 'label-conditional up to $+37.5$', **kw)
     nxt = [d for d in datasets if d not in PARTITIONED]
     if nxt:
-        ax.text(14.0, ypos[nxt[0]] + 0.5, 'no partition: band opens',
-                fontsize=7.9, ha='left', va='center', color='#333333')
+        # right-aligned in the empty part of the first non-partitioned row, so it
+        # does not overprint the MSRC v2 markers (panel review F1)
+        ax.text(99.5, ypos[nxt[0]] + 0.12, 'no partition: band opens',
+                fontsize=7.9, ha='right', va='center', color='#333333')
 
     two_line = {'letter_frost': 'Letter\nFrost',
                 'letter_carroll': 'Letter\nCarroll', 'mscv2': 'MSRC v2',

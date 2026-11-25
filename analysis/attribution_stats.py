@@ -4,7 +4,7 @@ Mirrors the conventions already used by analysis/stat_redo.py and
 analysis/stat_strong.py so the new paper's statistics match the ones the ICDM
 reviewers singled out as a strength:
   * paired bootstrap 95% CI over per-model values
-  * one-sided paired Wilcoxon signed-rank test
+  * two-sided paired Wilcoxon signed-rank test
   * Cliff's delta effect size
   * Holm-Bonferroni correction, per dataset (the project convention)
 
@@ -20,9 +20,9 @@ it has the sign of the overall mean.
 DMKD revision (reviewer 3, pt 3): because of that dependence, the primary test
 is now at the FOLD level. Seed-averaged differences per fold (k = number of
 folds) are tested with the Nadeau-Bengio corrected resampled t-test (variance
-inflated by 1/k + n_test/n_train = 1/k + 1/(k-1), df = k-1, one-sided), Holm
+inflated by 1/k + n_test/n_train = 1/k + 1/(k-1), df = k-1, two-sided), Holm
 over the comparisons of a dataset. The exact fold-level Wilcoxon is reported
-too; with k = 5 its smallest one-sided p is 1/32, so it cannot survive Holm
+too; with k = 5 its smallest two-sided p is 1/16, so it cannot survive Holm
 over 21 comparisons and is shown for transparency only. The per-model Wilcoxon
 is kept as a secondary, explicitly optimistic analysis.
 
@@ -60,7 +60,7 @@ def load(results=RESULTS, methods=None):
 
 
 def nb_corrected_t(fold_diffs):
-    """Nadeau & Bengio (2003) corrected resampled t-test, one-sided (d > 0).
+    """Nadeau & Bengio (2003) corrected resampled t-test, two-sided.
 
     For k-fold CV, n_test/n_train = 1/(k-1). Returns (t, p).
     """
@@ -68,11 +68,11 @@ def nb_corrected_t(fold_diffs):
     k = len(d)
     var = d.var(ddof=1)
     if k < 2 or var == 0:
-        return (float('inf') if d.mean() > 0 else 0.0,
-                0.0 if d.mean() > 0 else 1.0)
+        return (float('inf') if d.mean() != 0 else 0.0,
+                0.0 if d.mean() != 0 else 1.0)
     se = np.sqrt((1.0 / k + 1.0 / (k - 1)) * var)
     tval = d.mean() / se
-    return float(tval), float(t_dist.sf(tval, df=k - 1))
+    return float(tval), float(min(1.0, 2 * t_dist.sf(abs(tval), df=k - 1)))
 
 
 def keyed(d, metric):
@@ -144,9 +144,10 @@ def main():
         for a, b in itertools.combinations(methods, 2):
             va = np.array([series[a][k] for k in common])
             vb = np.array([series[b][k] for k in common])
-            # Orient every pair so `a` is the method with the higher mean: the
-            # one-sided alternative is then always "the apparent winner is
-            # really better", which is the question the paper asks.
+            # Orient every pair so `a` is the method with the higher mean (for
+            # reporting only). All tests are TWO-SIDED (DMKD R1 panel review):
+            # the direction is read from the data, so a one-sided test against
+            # the apparent winner would halve every p-value.
             if va.mean() < vb.mean():
                 a, b, va, vb = b, a, vb, va
             diff = va - vb
@@ -163,7 +164,7 @@ def main():
                 pvals.append(1.0)
                 continue
             try:
-                stat, p = wilcoxon(va, vb, alternative='greater')
+                stat, p = wilcoxon(va, vb, alternative='two-sided')
             except ValueError:
                 p = 1.0
             folds = sorted({k[0] for k in common})
@@ -171,7 +172,7 @@ def main():
                                          if k[0] == f])) for f in folds]
             t_nb, p_nb = nb_corrected_t(fold_diffs)
             try:
-                p_fw = float(wilcoxon(fold_diffs, alternative='greater').pvalue)
+                p_fw = float(wilcoxon(fold_diffs, alternative='two-sided').pvalue)
             except ValueError:
                 p_fw = 1.0
             comps.append({
@@ -201,7 +202,7 @@ def main():
     json.dump({'metric': args.metric, 'per_dataset': report},
               open(args.out, 'w'), indent=2)
 
-    print(f'metric: {args.metric}   (Holm-corrected per dataset, one-sided Wilcoxon)')
+    print(f'metric: {args.metric}   (Holm-corrected per dataset, two-sided Wilcoxon)')
     for ds, r in report.items():
         print(f'\n=== {ds}  (n={r["n_paired_models"]} paired models) ===')
         if r.get('skipped'):

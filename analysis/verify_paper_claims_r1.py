@@ -152,13 +152,14 @@ check('analysis nec.', 'DSMIL-sep MSRC P@1 30.1, chance 34.2, pooled 0.460, 34/3
        round(im('dsmil', 'mscv2', 'InstAUCPooled'), 3), sum(r['InstAUC'] < 0.5 for r in R_sep)]
       == [30.1, 34.2, 0.460, 34])
 c = comp(ST, 'mscv2', 'attnmil', 'dsmil')
-check('analysis nec.', 'AB-MIL > DSMIL-sep MSRC: 4.0, fold p 0.046, delta 0.74',
+check('analysis nec.', 'AB-MIL > DSMIL-sep MSRC: 4.0 in the mean, NOT significant two-sided (p 0.091), delta 0.74, 5/5',
       c['a'] == 'attnmil' and [r1(100 * c['mean_diff']), round(c['p_fold_nb_holm'], 3),
-                               round(c['cliffs_delta'], 2)] == [4.0, 0.046, 0.74])
+                               round(c['cliffs_delta'], 2), c['folds_same_sign']] == [4.0, 0.091, 0.74, 5]
+      and not c['significant_fold'])
 c = comp(ST, 'mscv2', 'dsmil_orig', 'dsmil')
-check('analysis nec.', 'DSMIL vs DSMIL-sep MSRC: 27.4, p 3.4e-4, delta 0.998',
+check('analysis nec.', 'DSMIL vs DSMIL-sep MSRC: 27.4, p 6.9e-4, delta 0.998',
       c['a'] == 'dsmil_orig' and r1(100 * c['mean_diff']) == 27.4
-      and float(f"{c['p_fold_nb_holm']:.1e}") == 3.4e-4 and round(c['cliffs_delta'], 3) == 0.998)
+      and float(f"{c['p_fold_nb_holm']:.1e}") == 6.9e-4 and round(c['cliffs_delta'], 3) == 0.998)
 ap_o, ap_s = im('dsmil_orig', 'mscv2', 'BagAveragePrecision'), im('dsmil', 'mscv2', 'BagAveragePrecision')
 check('analysis nec.', 'DSMIL pair: 3.1 pts AP (0.773 vs 0.743)',
       [round(ap_o, 3), round(ap_s, 3), r1(100 * (ap_o - ap_s))] == [0.773, 0.743, 3.1])
@@ -170,11 +171,11 @@ check('analysis nec.', 'pooled AUC ML-Dec 0.735..0.808, Q2L 0.678..0.710',
       [round(min(mla), 3), round(max(mla), 3), round(min(qa), 3), round(max(qa), 3)]
       == [0.735, 0.808, 0.678, 0.710])
 cs = [comp(ST, d, 'ml_decoder', 'q2l') for d in CLS]
-check('analysis nec.', 'ML-Dec > Q2L +5.4 +9.0 +12.4 (p<=0.009) and +12.4 BS (p 0.15, 5/5)',
+check('analysis nec.', 'ML-Dec > Q2L +5.4 +9.0 +12.4 (p<=0.018) and +12.4 BS (p 0.29, 5/5)',
       all(c['a'] == 'ml_decoder' for c in cs)
       and [r1(100 * c['mean_diff']) for c in cs] == [5.4, 9.0, 12.4, 12.4]
-      and all(c['p_fold_nb_holm'] <= 0.009 for c in cs[:3])
-      and round(cs[3]['p_fold_nb_holm'], 2) == 0.15 and cs[3]['folds_same_sign'] == 5)
+      and all(c['p_fold_nb_holm'] <= 0.018 for c in cs[:3])
+      and round(cs[3]['p_fold_nb_holm'], 2) == 0.29 and cs[3]['folds_same_sign'] == 5)
 check('analysis nec.', 'ML-Dec > Q2L delta 0.57..0.94 on partitioned',
       [round(c['cliffs_delta'], 2) for c in cs[:3]] == [0.57, 0.89, 0.94])
 check('analysis nec.', 'ML-Dec vs TransMIL Cliff delta = 1.00 on all four',
@@ -185,8 +186,8 @@ def nsig(st, d):
     return sum(c['significant_fold'] for c in st[d]['comparisons']
                if c['a'] in COND and c['b'] in COND)
 na, npp = sum(nsig(SA, d) for d in CLS), sum(nsig(ST, d) for d in CLS)
-check('analysis bag', 'fold-sig label-conditional pairs: attribution 28/40, AP 9/40',
-      (npp, na) == (28, 9), (npp, na))
+check('analysis bag', 'fold-sig label-conditional pairs: attribution 26/40, AP 5/40',
+      (npp, na) == (26, 5), (npp, na))
 opp = 0
 for d in CLS:
     for ca in SA[d]['comparisons']:
@@ -286,7 +287,7 @@ check('analysis lab.', 'Bird Song: no label-conditional cell significant',
 # ---- statistics / ensemble ----------------------------------------------------
 pm = sum(c['significant'] for d in CLS for c in ST[d]['comparisons'])
 pf = sum(c['significant_fold'] for d in CLS for c in ST[d]['comparisons'])
-check('response R3.3', '90 per-model significant, 74 fold-level (classical)', (pm, pf) == (90, 74), (pm, pf))
+check('response R3.3', '90 per-model significant, 63 fold-level (classical)', (pm, pf) == (90, 63), (pm, pf))
 G = {k: 100 * v for k, v in RS['ensemble_minus_model_ap'].items()
      if k.split('__')[0] in MAIN and k.split('__')[1] in CLS}
 check('appendix', 'ensemble lift positive in all 32 classical cells, 1.2..7.9',
@@ -337,9 +338,9 @@ if all((m, V) in CELLS for m in MAIN):
     check('analysis del.', 'Seg-ML agnostic delta_l == delta_l\'',
           max(abs(EX[f'{m}__{V}']['del_self_present'] - EX[f'{m}__{V}']['del_other_present']) for m in AG) < 1e-6)
     c = comp(ST, V, 'dsmil_orig', 'dsmil')
-    check('analysis nec.', 'Seg-ML DSMIL vs sep: 32.2, p 1.2e-8, delta 1.00, 10/10 folds',
+    check('analysis nec.', 'Seg-ML DSMIL vs sep: 32.2, p 2.4e-8, delta 1.00, 10/10 folds',
           c['a'] == 'dsmil_orig' and r1(100 * c['mean_diff']) == 32.2
-          and float(f"{c['p_fold_nb_holm']:.1e}") == 1.2e-8 and c['cliffs_delta'] == 1.0 and c['folds_same_sign'] == 10)
+          and float(f"{c['p_fold_nb_holm']:.1e}") == 2.4e-8 and c['cliffs_delta'] == 1.0 and c['folds_same_sign'] == 10)
     apv = sorted(MAIN, key=lambda m: -im(m, V, 'BagAveragePrecision'))
     check('analysis nec.', 'Seg-ML: DSMIL-sep +2.8, pooled 0.486, AP 0.892 second, +0.5 over DSMIL',
           [r1(delta('dsmil', V)), round(im('dsmil', V, 'InstAUCPooled'), 3),
@@ -415,9 +416,9 @@ if all((m, S) in CELLS for m in MAIN) and all((m, V) in CELLS for m in MAIN):
           and [r1(min(rat)), r1(max(rat))] == [1.2, 1.9], (bad, rat))
     # DSMIL pair (subsec:necessary)
     c = comp(ST, S, 'dsmil_orig', 'dsmil')
-    check('analysis nec.', 'Seg DSMIL vs sep: 28.8, p 2.5e-8, delta 1.00, 10/10 folds',
+    check('analysis nec.', 'Seg DSMIL vs sep: 28.8, p 5.0e-8, delta 1.00, 10/10 folds',
           c['a'] == 'dsmil_orig' and r1(100 * c['mean_diff']) == 28.8
-          and float(f"{c['p_fold_nb_holm']:.1e}") == 2.5e-8 and c['cliffs_delta'] == 1.0 and c['folds_same_sign'] == 10)
+          and float(f"{c['p_fold_nb_holm']:.1e}") == 5.0e-8 and c['cliffs_delta'] == 1.0 and c['folds_same_sign'] == 10)
     aps = sorted(MAIN, key=lambda m: -im(m, S, 'BagAveragePrecision'))
     check('analysis nec.', 'Seg DSMIL-sep +12.1 weakest; AP 0.926 highest, = ML-Dec to 3 dp',
           r1(delta('dsmil', S)) == 12.1 and min(MAIN, key=lambda m: delta(m, S)) == 'dsmil'
@@ -425,8 +426,8 @@ if all((m, S) in CELLS for m in MAIN) and all((m, V) in CELLS for m in MAIN):
           == round(im('ml_decoder', S, 'BagAveragePrecision'), 3))
     # bag AP vs attribution over six benchmarks (subsec:bagap)
     ds6 = CLS + [V, S]
-    check('analysis bag', 'six benchmarks: attribution 45/60, AP 11/60, AP 0 on Seg-ML',
-          (sum(nsig(ST, d) for d in ds6), sum(nsig(SA, d) for d in ds6), nsig(SA, V)) == (45, 11, 0),
+    check('analysis bag', 'six benchmarks: attribution 43/60, AP 6/60, AP 0 on Seg-ML',
+          (sum(nsig(ST, d) for d in ds6), sum(nsig(SA, d) for d in ds6), nsig(SA, V)) == (43, 6, 0),
           (sum(nsig(ST, d) for d in ds6), sum(nsig(SA, d) for d in ds6), nsig(SA, V)))
     opp6 = []
     for d in ds6:
@@ -438,9 +439,9 @@ if all((m, S) in CELLS for m in MAIN) and all((m, V) in CELLS for m in MAIN):
     ok = len(opp6) == 1 and opp6[0][:3] == (S, 'dsmil', 'q2l')
     if ok:
         ca, cp = opp6[0][3], opp6[0][4]
-        ok = (r1(100 * ca['mean_diff']) == 1.0 and round(ca['p_fold_nb_holm'], 3) == 0.017
-              and r1(100 * cp['mean_diff']) == 34.5 and float(f"{cp['p_fold_nb_holm']:.1e}") == 5.6e-9)
-    check('analysis bag', 'exactly one opposite pair: Seg DSMIL-sep vs Q2L, AP +1.0 p .017 / P@1 34.5 p 5.6e-9',
+        ok = (r1(100 * ca['mean_diff']) == 1.0 and round(ca['p_fold_nb_holm'], 3) == 0.034
+              and r1(100 * cp['mean_diff']) == 34.5 and float(f"{cp['p_fold_nb_holm']:.1e}") == 1.1e-8)
+    check('analysis bag', 'exactly one opposite pair: Seg DSMIL-sep vs Q2L, AP +1.0 p .034 / P@1 34.5 p 1.1e-8',
           ok, [o[:3] for o in opp6])
     spv = [r1(100 * (max(im(m, d, k) for m in COND) - min(im(m, d, k) for m in COND)))
            for d in (V, S) for k in ('BagAveragePrecision', 'InstP@1')]
@@ -553,12 +554,14 @@ try:
 except Exception as exc:                                       # pragma: no cover
     check('theory', 'GT-based checks computable', False, exc)
 _RESP = 'paper_attribution/revision_dmkd_r1/response/response.tex'
+# withdrawn wording that must not return; kept in the private revision folder, which
+# the public mirror does not carry (the phrases quote the confidential manuscript)
+_PHRF = 'paper_attribution/revision_dmkd_r1/stale_phrases.json'
+_PHR = json.load(open(_PHRF)) if os.path.exists(_PHRF) else {'response': [], 'manuscript': []}
 if os.path.exists(_RESP):                      # the letter is not part of the public mirror
     _resp = open(_RESP).read()
     _resp = '\n'.join(l for l in _resp.splitlines() if not l.lstrip().startswith('%'))
-    _bad = [p for p in (r'mean AUC \$0\.681', r'AUC 0\.452', r'34 of 35', r'Section~4\.4', r'Measuring where a model looks',
-                        r'\$2\.4\$ to \$10\.3', r'more than three hours', r'bound is loose because', r'checks every\s+numerical')
-            if _re.search(p, _resp)]
+    _bad = [p for p in _PHR['response'] if _re.search(p, _resp)]
 _sig = {d: sorted({c['folds_same_sign'] for c in ST[d]['comparisons'] if c['significant_fold']}) for d in DS6}
 check('appendix C', '28 comparisons per benchmark; significant ones keep sign in 5/5 (classical), >=9/10 (VOC)',
       all(len(ST[d]['comparisons']) == 28 for d in DS6) and all(_sig[d] == [5] for d in CLS)
@@ -576,15 +579,7 @@ if PAPER:
     _src = ''.join(open(f).read() for f in glob.glob('paper_attribution/sections/*.tex')
                    + ['paper_attribution/main.tex', 'paper_attribution/figures/overview_caption.tex'])
     _src = '\n'.join(l for l in _src.splitlines() if not l.lstrip().startswith('%'))
-    _stale = [pat for pat in (r'seven architectures', r'\$3\$ of a VOC', r'VOC-Patch cells hold three',
-                              r'1\{,\}022', r'one to two minutes', r'R1-VOC', r'PENDING',
-                              r'six baseline', r'\$42\$ stored', r'two VOC-Patch feature files',
-                              r'factor of \$5\$ to \$23\$', r'\$3\$ on VOC-Patch', r'up to \$7\.6\$',
-                              r'standard ImageNet preprocessing', r'four label-conditional', r'need not be attainable',
-                              r'attributes weakly on small bags', r'reported attribution AUC is the mean',
-                              r'\$34\$ of its \$35\$', r'Every table and figure is generated',
-                              r'four benchmarks that support inference', r'over the \$21\$ comparisons', r'every numerical claim')
-              if _re.search(pat, _src)]
+    _stale = [pat for pat in _PHR['manuscript'] if _re.search(pat, _src)]
     check('manuscript', 'no stale v1 phrases (seven archs, 3-model VOC, 1,022, ...)', not _stale, _stale)
 
 # ---- crop effect (analysis voc-sensitivity, R1.4b) ------------------------------
@@ -612,6 +607,73 @@ dsets = CLS + [d for d in ('voc2012segml_nc', 'voc2012seg_nc') if all((m, d) in 
 nb = {d: sum(im(m, d, 'BagAveragePrecision') > im('hap_only', d, 'BagAveragePrecision')
              for m in MAIN if m != 'hap_only') for d in dsets}
 check('setup', '>= 2 other archs beat HAP per-model AP on every benchmark', min(nb.values()) >= 2, nb)
+
+
+# ---- DMKD R1 panel review (2026-11-25): two-sided tests and new claims -------------
+check('setup stats', 'all tests two-sided (no one-sided alternative in attribution_stats.py)',
+      "alternative='greater'" not in open('analysis/attribution_stats.py').read()
+      and '2 * t_dist.sf(abs(tval)' in open('analysis/attribution_stats.py').read())
+_hk = json.load(open(os.path.join(T, 'hap_topk_identity.json')))
+_hs = [100 * _hk[d]['share_identical_mean'] for d in PART]
+check('analysis HAP', 'alpha~0: top-k set label-identical in 99.4..99.8% of bags > k; alpha = sigma(-10)',
+      [r1(min(_hs)), r1(max(_hs))] == [99.4, 99.8]
+      and all(abs(_hk[d]['alpha_max'] - 1 / (1 + np.exp(10))) < 1e-9 for d in PART), _hs)
+DS6 = CLS + ['voc2012seg_nc', 'voc2012segml_nc']
+_sel = lambda m: [EX[f'{m}__{d}']['del_selective_present'] for d in DS6]
+_ag = [x for m in AG for x in _sel(m)]
+check('analysis del.', 'per-pair selectivity: agnostic 0.43..0.49; ML-Dec 0.66..0.77; Q2L 0.61..0.74; DSMIL 0.61..0.76',
+      [round(min(_ag), 2), round(max(_ag), 2)] == [0.43, 0.49]
+      and [round(min(_sel('ml_decoder')), 2), round(max(_sel('ml_decoder')), 2)] == [0.66, 0.77]
+      and [round(min(_sel('q2l')), 2), round(max(_sel('q2l')), 2)] == [0.61, 0.74]
+      and [round(min(_sel('dsmil_orig')), 2), round(max(_sel('dsmil_orig')), 2)] == [0.61, 0.76])
+_hsel = {d: EX[f'hap_only__{d}']['del_selective_present'] for d in DS6}
+check('analysis del.', 'HAP selectivity 0.54..0.64 on MSRC, BS, VOC; ~0.5 on Letters; DSMIL-sep MSRC 0.43',
+      [round(min(_hsel[d] for d in DS6[2:]), 2), round(max(_hsel[d] for d in DS6[2:]), 2)] == [0.54, 0.64]
+      and all(abs(_hsel[d] - 0.5) < 0.03 for d in PART[:2])
+      and round(EX['dsmil__mscv2']['del_selective_present'], 2) == 0.43, _hsel)
+_ms = {m: r1(100 * EX[f'{m}__hja_birdsong']['ml_P@1']) for m in COND}
+check('analysis 9.1', 'multi-species: Q2L 49.4 above 38.5; DSMIL-sep 34.0 and HAP 34.4 below',
+      (_ms['q2l'], _ms['dsmil'], _ms['hap_only']) == (49.4, 34.0, 34.4)
+      and r1(100 * EX['attnmil__hja_birdsong']['ml_ceiling']) == 38.5, _ms)
+_bg = [100 * EX[f'{m}__voc2012seg_nc']['frac_miss_background'] for m in AG]
+check('analysis voc', 'VOC-Seg agnostic misses: 36..46% background, 54..64% other object',
+      [round(min(_bg)), round(max(_bg)), round(100 - max(_bg)), round(100 - min(_bg))] == [36, 46, 54, 64], _bg)
+_tm = {m: (EX[f'{m}__voc2012seg_nc']['tau0.05_P@1'] - EX[f'{m}__voc2012seg_nc']['tau0.05_chance'])
+          - (EX[f'{m}__voc2012seg_nc']['tau0.5_P@1'] - EX[f'{m}__voc2012seg_nc']['tau0.5_chance']) for m in MAIN} \
+    if 'tau0.05_P@1' in EX['attnmil__voc2012seg_nc'] else None
+if _tm:
+    check('analysis voc', 'tau shrink: agnostic 17..18 points, ML-Dec/Q2L 12..13',
+          [round(100 * min(_tm[m] for m in AG)), round(100 * max(_tm[m] for m in AG)),
+           round(100 * min(_tm['ml_decoder'], _tm['q2l'])), round(100 * max(_tm['ml_decoder'], _tm['q2l']))] == [17, 18, 12, 13], _tm)
+_best = {d: max(delta(m, d) for m in COND) for d in DS6}
+_add = {d: max(delta('attnmil', d, 'AddP@1'), delta('gated_attn', d, 'AddP@1')) for d in DS6}
+_addmin = {d: min(delta('attnmil', d, 'AddP@1'), delta('gated_attn', d, 'AddP@1')) for d in DS6}
+check('analysis add.', 'additive: level with best label-cond. on LF, LC, VOC-Seg; behind on MSRC (9..11), BS, Seg-ML',
+      all(_add[d] >= _best[d] - 2 for d in ('letter_frost', 'letter_carroll', 'voc2012seg_nc'))
+      and all(_add[d] < _best[d] - 2 for d in ('mscv2', 'hja_birdsong', 'voc2012segml_nc'))
+      and [round(_best['mscv2'] - _add['mscv2']), round(_best['mscv2'] - _addmin['mscv2'])] == [9, 11], (_best, _add))
+check('discussion', 'additive 26..49 points over chance; up to 15 behind (conclusion); ML-Dec BS 40.3',
+      [round(min(_addmin.values())), round(max(_add.values())),
+       round(max(_best[d] - _addmin[d] for d in DS6)), r1(_best['hja_birdsong'])] == [26, 49, 15, 40.3])
+_bb = json.load(open(os.path.join(T, 'voc_bbox_agreement.json')))
+check('limitations', 'box-derived labels: 2,913 images, recall 95.7, precision 74.4 at tau 0.05',
+      [_bb['images'], r1(100 * _bb['recall']), r1(100 * _bb['precision']), _bb['threshold']] == [2913, 95.7, 74.4, 0.05], _bb)
+_pm = lambda S: sum(c['significant'] for d in DS6 for c in S[d]['comparisons'] if c['a'] in COND and c['b'] in COND)
+check('analysis bag', 'secondary per-model test: attribution 54/60, bag AP 35/60', (_pm(ST), _pm(SA)) == (54, 35), (_pm(ST), _pm(SA)))
+if PAPER and os.path.exists('paper_attribution/main.pdf') and os.path.exists(_RESP):
+    import subprocess as _sp
+    _np = int(_re.search(r'Pages:\s+(\d+)', _sp.run(['pdfinfo', 'paper_attribution/main.pdf'], capture_output=True, text=True).stdout).group(1))
+    _decl = next(p for p in range(1, _np + 1) if _re.search(r'^Statements and Declarations', _sp.run(
+        ['pdftotext', '-f', str(p), '-l', str(p), 'paper_attribution/main.pdf', '-'], capture_output=True, text=True).stdout, _re.M))
+    _rt = open(_RESP).read()
+    check('response R1.1f', 'letter page counts: whole PDF 58 -> N, main text 46 -> page of Declarations',
+          f'from $58$ to ${_np}$' in _rt and f'from $46$ to ${_decl}$' in _rt, (_np, _decl))
+if PAPER:
+    _abs = open('paper_attribution/sections/abstract.tex').read()
+    _abs = _abs[_abs.index('Attention maps'):]
+    _nw = len(_re.sub(r'[$][^$]*[$]', 'N', _abs).split())
+    check('abstract', 'abstract within 250 words, AUC and DSMIL spelled out', _nw <= 250
+          and '(AUC)' in _abs and '(DSMIL)' in _abs, _nw)
 
 # ---- data provenance -------------------------------------------------------------
 try:

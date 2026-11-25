@@ -227,7 +227,7 @@ def regime_table():
         ch = chance_precision_at_1(inst, bag, mask)
         ce = label_agnostic_ceiling(inst, bag, mask)
         dj = witness_disjointness(inst, bag, mask)
-        row = (f'{name} & {bag.shape[0]} & {100*dj:.1f}\\% & '
+        row = (f'{name} & ' + f'{bag.shape[0]:,}'.replace(',', '{,}') + f' & {100*dj:.1f}\\% & '
                f'{100*ch:.1f}\\% & {100*ce:.1f}\\% & '
                f'{100*(ce-ch):+.1f} pts')
         summary[name] = {'bags': int(bag.shape[0]), 'disjointness': dj,

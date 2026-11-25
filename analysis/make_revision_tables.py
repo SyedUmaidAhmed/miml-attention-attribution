@@ -97,7 +97,8 @@ def additive_table(cells):
                 L.append('\\midrule')
         L += ['\\bottomrule', '\\end{tabular}']
         return '\n'.join(L)
-    return panels(build, [CLASSICAL, [d for d in VOC]])
+    # three panels of two benchmarks each keep the print size legible (panel review V2)
+    return panels(build, [CLASSICAL[:2], CLASSICAL[2:], [d for d in VOC]])
 
 
 def deletion_table(cells, extras_path):
@@ -105,7 +106,9 @@ def deletion_table(cells, extras_path):
     drop in logit l when l's top instance is removed (delta_l), mean drop of the
     other present labels (delta_l'), and the drop in logit l when a random other
     instance is removed instead (delta_l^rnd, all bags)."""
-    ex = json.load(open(extras_path))['cells'] if os.path.exists(extras_path) else {}
+    if not os.path.exists(extras_path):
+        raise SystemExit(f'missing {extras_path}: run analysis/attribution_extras.py first')
+    ex = json.load(open(extras_path))['cells']
 
     def build(dss):
         L = ['\\begin{tabular}{l' + 'rrr' * len(dss) + '}', '\\toprule',
@@ -129,29 +132,32 @@ def deletion_table(cells, extras_path):
 
 
 def hap_table(cells):
-    dss = CLASSICAL
-    L = [HEAD, '\\begin{tabular}{l' + 'rrr' * len(dss) + '}', '\\toprule',
-         'HAP setting & ' + ' & '.join(f'\\multicolumn{{3}}{{c}}{{{DS[d]}}}' for d in dss) + ' \\\\',
-         ' '.join(f'\\cmidrule(lr){{{2+3*k}-{4+3*k}}}' for k in range(len(dss))),
-         ' & ' + ' & '.join(['$\\Delta$', 'AUC$_{\\mathrm{pool}}$', 'AP'] * len(dss)) + ' \\\\',
-         '\\midrule']
     alpha = {}
-    for key, name in HAP_ROWS:
-        row = [name]
-        for d in dss:
-            c = cells.get((key, d))
-            if c is None:
-                row += ['--'] * 3
-                continue
-            row += [fmt(mean(c, 'InstP@1') - mean(c, 'ChanceP@1'), 1, pct=True, sign=True),
-                    fmt(mean(c, 'InstAUCPooled')), fmt(mean(c, 'BagAveragePrecision'))]
-            al = [a for r in c['instance_per_model'] for a in r.get('HapAlpha', [])]
-            if al:
-                alpha[f'{key}__{d}'] = {'mean': float(np.mean(al)), 'min': float(np.min(al)),
-                                        'max': float(np.max(al)), 'sd': float(np.std(al))}
-        L.append(' & '.join(row) + ' \\\\')
-    L += ['\\bottomrule', '\\end{tabular}']
-    return HEAD + '\n' + boxed('\n'.join(L[1:])) + '\n', alpha
+
+    def build(dss):
+        L = ['\\begin{tabular}{l' + 'rrr' * len(dss) + '}', '\\toprule',
+             'HAP setting & ' + ' & '.join(f'\\multicolumn{{3}}{{c}}{{{DS[d]}}}' for d in dss) + ' \\\\',
+             ' '.join(f'\\cmidrule(lr){{{2+3*k}-{4+3*k}}}' for k in range(len(dss))),
+             ' & ' + ' & '.join(['$\\Delta$', 'AUC$_{\\mathrm{pool}}$', 'AP'] * len(dss)) + ' \\\\',
+             '\\midrule']
+        for key, name in HAP_ROWS:
+            row = [name]
+            for d in dss:
+                c = cells.get((key, d))
+                if c is None:
+                    row += ['--'] * 3
+                    continue
+                row += [fmt(mean(c, 'InstP@1') - mean(c, 'ChanceP@1'), 1, pct=True, sign=True),
+                        fmt(mean(c, 'InstAUCPooled')), fmt(mean(c, 'BagAveragePrecision'))]
+                al = [a for r in c['instance_per_model'] for a in r.get('HapAlpha', [])]
+                if al:
+                    alpha[f'{key}__{d}'] = {'mean': float(np.mean(al)), 'min': float(np.min(al)),
+                                            'max': float(np.max(al)), 'sd': float(np.std(al))}
+            L.append(' & '.join(row) + ' \\\\')
+        L += ['\\bottomrule', '\\end{tabular}']
+        return '\n'.join(L)
+    # two panels of two benchmarks each keep the print size legible (panel review V5)
+    return panels(build, [CLASSICAL[:2], CLASSICAL[2:]]), alpha
 
 
 def f1_table(cells):
@@ -178,7 +184,7 @@ def f1_table(cells):
 def misses_table(extras_path):
     """Non-partitioned benchmarks: where top-1 misses land, and multi-label bags."""
     if not os.path.exists(extras_path):
-        return HEAD + '\n% extras not available\n'
+        raise SystemExit(f'missing {extras_path}: run analysis/attribution_extras.py first')
     ex = json.load(open(extras_path))['cells']
     dss = ['hja_birdsong'] + VOC
     L = ['\\begin{tabular}{l' + 'rrr' * len(dss) + '}', '\\toprule',
@@ -215,7 +221,7 @@ def tau_table(extras_path):
     """VOC-Patch-Seg re-scored at three overlap thresholds (R1 pt 4a, R3 pt 2).
     Bag labels are image-level and do not depend on tau; only patch labels do."""
     if not os.path.exists(extras_path):
-        return HEAD + '\n% extras not available\n'
+        raise SystemExit(f'missing {extras_path}: run analysis/attribution_extras.py first')
     ex = json.load(open(extras_path))['cells']
     taus = (0.05, 0.25, 0.5)
     d = 'voc2012seg_nc'

@@ -1,0 +1,30 @@
+{
+ "letter_frost": {
+  "models": 35,
+  "share_identical_mean": 0.9978021978021977,
+  "share_identical_min": 0.9230769230769231,
+  "bags_gt_k_per_model": 14.6,
+  "alpha_max": 4.539787187241018e-05
+ },
+ "letter_carroll": {
+  "models": 35,
+  "share_identical_mean": 0.9953399541634835,
+  "share_identical_min": 0.8823529411764706,
+  "bags_gt_k_per_model": 18.0,
+  "alpha_max": 4.539787187241018e-05
+ },
+ "mscv2": {
+  "models": 35,
+  "share_identical_mean": 0.9944651062571719,
+  "share_identical_min": 0.9411764705882353,
+  "bags_gt_k_per_model": 36.6,
+  "alpha_max": 4.539787187241018e-05
+ },
+ "hja_birdsong": {
+  "models": 35,
+  "share_identical_mean": 0.9833835758812179,
+  "share_identical_min": 0.926605504587156,
+  "bags_gt_k_per_model": 108.4,
+  "alpha_max": 4.539787187241018e-05
+ }
+}
