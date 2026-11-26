@@ -675,6 +675,67 @@ if PAPER:
     check('abstract', 'abstract within 250 words, AUC and DSMIL spelled out', _nw <= 250
           and '(AUC)' in _abs and '(DSMIL)' in _abs, _nw)
 
+
+# ---- R2.3: label imbalance, head vs tail (analysis/imbalance_analysis.py) -------------
+_IMB = json.load(open(os.path.join(T, 'imbalance.json')))
+from scipy.stats import t as _tdist
+def _nb2(fm):
+    fm = np.asarray(fm, float); k = len(fm); v = fm.var(ddof=1)
+    return 1.0 if v == 0 else float(min(1.0, 2 * _tdist.sf(abs(fm.mean() / np.sqrt((1 / k + 1 / (k - 1)) * v)), k - 1)))
+_bad_p = [(c, m) for c, r in _IMB['cells'].items() for m in ('test_AP', 'test_APx', 'test_APn', 'test_F1', 'test_M')
+          if r[m].get('testable') and abs(_nb2(r[m]['fold_means']) - r[m]['p']) > 1e-9]
+check('imbalance', '1,600 models; every head-tail NB p recomputed from fold means', _IMB['gate_models_checked'] == 1600 and not _bad_p, _bad_p[:3])
+_B = _IMB['benchmarks']
+check('imbalance', 'MeanIR 3.1 (BS) .. 15.8 (Seg-ML); 2..7 labels < 5%; VOC-Seg min count 89; classical tail freq 0.5..10.6%',
+      [r1(min(v['mean_ir'] for v in _B.values())), r1(_B['hja_birdsong']['mean_ir']), r1(max(v['mean_ir'] for v in _B.values())), r1(_B['voc2012segml_nc']['mean_ir'])] == [3.1, 3.1, 15.8, 15.8]
+      and [min(v['n_labels_lt5pct'] for v in _B.values()), max(v['n_labels_lt5pct'] for v in _B.values())] == [2, 7]
+      and _B['voc2012seg_nc']['min_count'] == 89
+      and [r1(100 * min(_B[d]['tail_freq_range'][0] for d in CLS)), r1(100 * max(_B[d]['tail_freq_range'][1] for d in CLS))] == [0.5, 10.6])
+_C = _IMB['counts']
+_apc = [100 * _IMB['cells'][f'{m}__{d}']['AP_diff'] for m in MAIN for d in CLS]
+_aps = [100 * _IMB['cells'][f'{m}__voc2012seg_nc']['AP_diff'] for m in MAIN]
+check('imbalance', 'AP tail lower 48/48, significant 33 (all 32 classical, 0 VOC-Seg); 17.6..51.3 classical; VOC-Seg 1.7..2.5',
+      (_C['AP']['all']['mean_diff_positive'], _C['AP']['all']['head>tail'], _C['AP']['all']['tail>head']) == (48, 33, 0)
+      and all(_IMB['cells'][f'{m}__{d}']['test_AP']['significant'] for m in MAIN for d in CLS)
+      and not any(_IMB['cells'][f'{m}__voc2012seg_nc']['test_AP']['significant'] for m in MAIN)
+      and [r1(min(_apc)), r1(max(_apc)), r1(min(_aps)), r1(max(_aps))] == [17.6, 51.3, 1.7, 2.5])
+check('imbalance', 'F1 tail significantly lower 41/48; Micro > Macro in 48/48 by 3.1..19.0',
+      _C['F1']['all']['head>tail'] == 41 and _C['F1']['all']['tail>head'] == 0 and _C['F1_gap']['n_micro_gt_macro'] == 48
+      and [r1(100 * _C['F1_gap']['min']), r1(100 * _C['F1_gap']['max'])] == [3.1, 19.0])
+_sig = sorted(c for c in (f'{m}__{d}' for m in COND for d in DS6) if _IMB['cells'][c]['test_M']['significant'] and _IMB['cells'][c]['test_M']['direction'] == 'head>tail')
+check('imbalance', 'attribution (label-cond.): tail lower 26/30, significant 5 (DSMIL/ML-Dec/Q2L MSRC, Q2L LC, DSMIL BS), 1 reversed',
+      (_C['M']['label_conditional']['mean_diff_positive'], _C['M']['label_conditional']['n'], _C['M']['label_conditional']['head>tail'], _C['M']['label_conditional']['tail>head']) == (26, 30, 5, 1)
+      and _sig == sorted(['dsmil_orig__mscv2', 'ml_decoder__mscv2', 'q2l__mscv2', 'q2l__letter_carroll', 'dsmil_orig__hja_birdsong']), _sig)
+_mt = [100 * _IMB['cells'][f'{m}__mscv2']['M_tail'] for m in COND]
+check('imbalance', 'MSRC: no label-conditional tail margin above +3 (-4.7..+2.8); ML-Dec head +44.4',
+      [r1(min(_mt)), r1(max(_mt)), r1(100 * _IMB['cells']['ml_decoder__mscv2']['M_head'])] == [-4.7, 2.8, 44.4], _mt)
+_cl = [f'{m}__{d}' for m in MAIN for d in CLS]
+_vc = [f'{m}__{d}' for m in MAIN for d in ('voc2012seg_nc', 'voc2012segml_nc')]
+_ci = _IMB['cells']
+_fl = sorted({r1(100 * (_ci[c]['AP_diff'] - _ci[c]['APx_diff'])) for c in _cl})
+check('imbalance', 'prevalence floor head-tail 18.5..22.9 (classical); raw AP significant 1/16 on VOC',
+      [_fl[0], _fl[-1]] == [18.5, 22.9] and sum(_ci[c]['test_AP']['significant'] for c in _vc) == 1, _fl)
+_xs = sorted(c for c in _cl if _ci[c]['test_APx']['significant'])
+check('imbalance', 'AP-pi: classical tail lower 31/32, significant 7 all Letter; VOC tail higher 16/16, 3 significant',
+      sum(_ci[c]['APx_diff'] > 0 for c in _cl) == 31 and len(_xs) == 7
+      and all(_ci[c]['test_APx']['direction'] == 'head>tail' and 'letter' in c for c in _xs)
+      and sum(_ci[c]['APx_diff'] < 0 for c in _vc) == 16
+      and [_ci[c]['test_APx']['direction'] for c in _vc if _ci[c]['test_APx']['significant']] == ['tail>head'] * 3, _xs)
+check('imbalance', '(AP-pi)/(1-pi): tail lower 48/48, significant 26/32 classical (all on LF, LC, MSRC), 0 VOC',
+      _C['APn']['all']['mean_diff_positive'] == 48
+      and sum(_ci[c]['test_APn']['significant'] for c in _cl) == 26
+      and all(_ci[f'{m}__{d}']['test_APn']['significant'] and _ci[f'{m}__{d}']['APx_diff'] > 0
+              for m in MAIN for d in ('letter_frost', 'letter_carroll', 'mscv2'))
+      and not any(_ci[c]['test_APn']['significant'] for c in _vc) and _C['APn']['all']['tail>head'] == 0)
+_pos = [100 * c['micro_minus_macro_f1_labels_with_pos'] for c in _ci.values()]
+check('imbalance', 'Micro-Macro over labels with a positive: 3.1..15.3; F1 tail lower 48/48',
+      [r1(min(_pos)), r1(max(_pos))] == [3.1, 15.3] and _C['F1']['all']['mean_diff_positive'] == 48)
+_rev = sorted(c for c, r in _ci.items() if r['test_M']['significant'] and r['test_M']['direction'] == 'tail>head')
+check('imbalance', 'attribution reversals: DSMIL-sep (head margin +3.4) and Gated AB-MIL on VOC-Seg',
+      _rev == ['dsmil__voc2012seg_nc', 'gated_attn__voc2012seg_nc'] and r1(100 * _ci['dsmil__voc2012seg_nc']['M_head']) == 3.4, _rev)
+if PAPER:
+    check('imbalance', 'tab:imbalance in the manuscript', '\\input{tables/imbalance}' in open('paper_attribution/main.tex').read())
+
 # ---- data provenance -------------------------------------------------------------
 try:
     from scipy.io import loadmat

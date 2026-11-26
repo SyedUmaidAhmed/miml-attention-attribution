@@ -1,9 +1,9 @@
 # Verification report: release v1.1
 
-Generated 2026-11-26 00:05 by `python3 analysis/verify_paper_claims_r1.py` (115 checks).
+Generated 2026-11-26 08:33 by `python3 analysis/verify_paper_claims_r1.py` (126 checks).
 The reported numbers are re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU), the generated analysis files in `paper_attribution/tables/` and the VOC-Patch ground truth; the run exits non-zero if any check fails. All pairwise tests are two-sided (fold-level Nadeau-Bengio corrected resampled t-test, Holm per benchmark).
 
-```
+\`\`\`
 Verifying the revised manuscript against results/instance_level_r1 
 
   PASS  [setup       ] classical cells complete: 8 archs x 4 x 35 models              1120
@@ -119,8 +119,19 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [discussion  ] additive 26..49 points over chance; up to 15 behind (conclusion); ML-Dec BS 40.3 
   PASS  [limitations ] box-derived labels: 2,913 images, recall 95.7, precision 74.4 at tau 0.05 {'images': 2913, 'threshold': 0.05, 'recall': 0.9567334919016877, 'precision': 0.7437485325193708}
   PASS  [analysis bag] secondary per-model test: attribution 54/60, bag AP 35/60      (54, 35)
+  PASS  [imbalance   ] 1,600 models; every head-tail NB p recomputed from fold means  []
+  PASS  [imbalance   ] MeanIR 3.1 (BS) .. 15.8 (Seg-ML); 2..7 labels < 5%; VOC-Seg min count 89; classical tail freq 0.5..10.6% 
+  PASS  [imbalance   ] AP tail lower 48/48, significant 33 (all 32 classical, 0 VOC-Seg); 17.6..51.3 classical; VOC-Seg 1.7..2.5 
+  PASS  [imbalance   ] F1 tail significantly lower 41/48; Micro > Macro in 48/48 by 3.1..19.0 
+  PASS  [imbalance   ] attribution (label-cond.): tail lower 26/30, significant 5 (DSMIL/ML-Dec/Q2L MSRC, Q2L LC, DSMIL BS), 1 reversed ['dsmil_orig__hja_birdsong', 'dsmil_orig__mscv2', 'ml_decoder__mscv2', 'q2l__letter_carroll', 'q2l__mscv2']
+  PASS  [imbalance   ] MSRC: no label-conditional tail margin above +3 (-4.7..+2.8); ML-Dec head +44.4 [2.8374971028356284, -3.036420646082121, 0.5891204794590047, -1.462518357894118, -4.685307473540377]
+  PASS  [imbalance   ] prevalence floor head-tail 18.5..22.9 (classical); raw AP significant 1/16 on VOC [18.5, 18.6, 22.5, 22.9]
+  PASS  [imbalance   ] AP-pi: classical tail lower 31/32, significant 7 all Letter; VOC tail higher 16/16, 3 significant ['attnmil__letter_carroll', 'attnmil__letter_frost', 'dsmil__letter_carroll', 'dsmil_orig__letter_carroll', 'gated_attn__letter_frost', 'ml_decoder__letter_carroll', 'q2l__letter_carroll']
+  PASS  [imbalance   ] (AP-pi)/(1-pi): tail lower 48/48, significant 26/32 classical (all on LF, LC, MSRC), 0 VOC 
+  PASS  [imbalance   ] Micro-Macro over labels with a positive: 3.1..15.3; F1 tail lower 48/48 
+  PASS  [imbalance   ] attribution reversals: DSMIL-sep (head margin +3.4) and Gated AB-MIL on VOC-Seg ['dsmil__voc2012seg_nc', 'gated_attn__voc2012seg_nc']
   PASS  [benchmarks  ] voc2012seg: no-crop file keeps labels and patch GT             
   PASS  [benchmarks  ] voc2012segml: no-crop file keeps labels and patch GT           
 
 all checks passed
-```
+\`\`\`
