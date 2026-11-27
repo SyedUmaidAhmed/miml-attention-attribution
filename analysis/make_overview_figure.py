@@ -279,7 +279,7 @@ def panel_theory(ax):
     ax.text(0.5, 0.965,
             '$\\Gamma=\\sum_i \\max_j \\mathrm{cov}_i(j)\\,/\\,\\sum_i m_i$',
             fontsize=7.9, ha='center', va='center')
-    ax.text(0.42, 0.815, 'attribution of any label-\n'
+    ax.text(0.42, 0.815, 'attention attribution of any label-\n'
             'agnostic model $\\leq \\Gamma$ — set by\n'
             'label geometry, not training',
             fontsize=6.9, ha='center', va='center', color=GRAY,

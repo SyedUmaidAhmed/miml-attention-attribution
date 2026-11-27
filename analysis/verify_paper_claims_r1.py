@@ -245,8 +245,9 @@ n_bags = CELLS[('attnmil', 'hja_birdsong')]
 check('analysis 9.1', 'multi-species: agnostic 31.0..32.5, chance 18.1, ceiling 38.5',
       [r1(min(mlp)), r1(max(mlp)), r1(100 * e['ml_chance']), r1(100 * e['ml_ceiling'])]
       == [31.0, 32.5, 18.1, 38.5])
-check('analysis 9.1', '63% of recordings have >=2 scorable species',
-      round(100 * e['ml_bags'] * 5 / 548) == 63, f"{100 * e['ml_bags'] * 5 / 548:.1f}")
+# 5 test folds of floor(548/5) = 109 recordings: 545 are ever tested
+check('analysis 9.1', '64% of tested recordings have >=2 scorable species',
+      round(100 * e['ml_bags'] * 5 / (5 * (548 // 5))) == 64, f"{100 * e['ml_bags'] / (548 // 5):.1f}")
 check('analysis 9.1', 'multi-species ML-Dec 63.4, DSMIL 45.0',
       [r1(100 * EX['ml_decoder__hja_birdsong']['ml_P@1']),
        r1(100 * EX['dsmil_orig__hja_birdsong']['ml_P@1'])] == [63.4, 45.0])
@@ -728,6 +729,12 @@ check('imbalance', '(AP-pi)/(1-pi): tail lower 48/48, significant 26/32 classica
               for m in MAIN for d in ('letter_frost', 'letter_carroll', 'mscv2'))
       and not any(_ci[c]['test_APn']['significant'] for c in _vc) and _C['APn']['all']['tail>head'] == 0)
 _pos = [100 * c['micro_minus_macro_f1_labels_with_pos'] for c in _ci.values()]
+_zl = [100 * (_ci[f'{m}__{d}']['micro_minus_macro_f1'] - _ci[f'{m}__{d}']['micro_minus_macro_f1_labels_with_pos'])
+       for m in MAIN for d in ('letter_frost', 'letter_carroll')]
+_zs = [z / (100 * _ci[f'{m}__{d}']['micro_minus_macro_f1']) for z, (m, d) in
+       zip(_zl, [(m, d) for m in MAIN for d in ('letter_frost', 'letter_carroll')])]
+check('imbalance', 'Letter: labels without a positive test bag account for 4.7..9.1 points (a quarter to a half) of Micro-Macro',
+      [r1(min(_zl)), r1(max(_zl))] == [4.7, 9.1] and 0.25 <= min(_zs) and max(_zs) <= 0.55, [r1(min(_zs), 2), r1(max(_zs), 2)])
 check('imbalance', 'Micro-Macro over labels with a positive: 3.1..15.3; F1 tail lower 48/48',
       [r1(min(_pos)), r1(max(_pos))] == [3.1, 15.3] and _C['F1']['all']['mean_diff_positive'] == 48)
 _rev = sorted(c for c, r in _ci.items() if r['test_M']['significant'] and r['test_M']['direction'] == 'tail>head')

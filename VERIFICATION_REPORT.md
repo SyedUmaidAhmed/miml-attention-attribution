@@ -1,6 +1,6 @@
 # Verification report: release v1.1
 
-Generated 2026-11-27 12:45 by `python3 analysis/verify_paper_claims_r1.py` (145 checks).
+Generated 2026-11-27 17:50 by `python3 analysis/verify_paper_claims_r1.py` (146 checks).
 The reported numbers are re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU), `results/instance_level_r1_coco/` (COCO-Patch-ML: 8 cells, 80 models, CPU), the generated analysis files in `paper_attribution/tables/` and the VOC-Patch and COCO-Patch-ML ground truth; the run exits non-zero if any check fails. All pairwise tests are two-sided (fold-level Nadeau-Bengio corrected resampled t-test, Holm per benchmark).
 
 ```
@@ -46,7 +46,7 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [analysis 9.1] Bird Song agnostic models never above ceiling                  
   PASS  [analysis 9.1] Bird Song agnostic misses on silence 28..29%                   [29.5, 28.0, 27.8]
   PASS  [analysis 9.1] multi-species: agnostic 31.0..32.5, chance 18.1, ceiling 38.5  
-  PASS  [analysis 9.1] 63% of recordings have >=2 scorable species                    63.3
+  PASS  [analysis 9.1] 64% of tested recordings have >=2 scorable species             63.7
   PASS  [analysis 9.1] multi-species ML-Dec 63.4, DSMIL 45.0                          
   PASS  [analysis HAP] soft-only +4.6 +5.4 +11.6; HAP +1.9 +3.3 +8.1                  
   PASS  [analysis HAP] top-k only: all 105 models within 0.8 pts of chance            0.75
@@ -128,6 +128,7 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [imbalance   ] prevalence floor head-tail 18.5..22.9 (classical); raw AP significant 1/16 on VOC [18.5, 18.6, 22.5, 22.9]
   PASS  [imbalance   ] AP-pi: classical tail lower 31/32, significant 7 all Letter; VOC tail higher 16/16, 3 significant ['attnmil__letter_carroll', 'attnmil__letter_frost', 'dsmil__letter_carroll', 'dsmil_orig__letter_carroll', 'gated_attn__letter_frost', 'ml_decoder__letter_carroll', 'q2l__letter_carroll']
   PASS  [imbalance   ] (AP-pi)/(1-pi): tail lower 48/48, significant 26/32 classical (all on LF, LC, MSRC), 0 VOC 
+  PASS  [imbalance   ] Letter: labels without a positive test bag account for 4.7..9.1 points (a quarter to a half) of Micro-Macro [0.26, 0.52]
   PASS  [imbalance   ] Micro-Macro over labels with a positive: 3.1..15.3; F1 tail lower 48/48 
   PASS  [imbalance   ] attribution reversals: DSMIL-sep (head margin +3.4) and Gated AB-MIL on VOC-Seg ['dsmil__voc2012seg_nc', 'gated_attn__voc2012seg_nc']
   PASS  [coco        ] 8 cells x 10 models (folds 0..9), batch 8, VOC widths, CPU, no NaN []
