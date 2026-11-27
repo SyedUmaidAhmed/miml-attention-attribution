@@ -75,7 +75,10 @@ INSTANCE_DATASETS = ['mscv2', 'letter_frost', 'letter_carroll',
                      'voc2012seg_nc', 'voc2012segml_nc', 'voc2012segml_g8',
                      # the submitted (centre-cropped) Seg-ML features under the
                      # revision protocol, to measure the crop effect (R1 pt 4)
-                     'voc2012segml_crop']
+                     'voc2012segml_crop',
+                     # COCO-Patch-ML 8x8; built by
+                     # datasets/build_coco_patch.py into COCO_PATCH_DIR
+                     'coco2017val_g8']
 
 # Datasets whose instance labels come from a side-car file rather than the
 # dataset object. Maps dataset name -> (npz path, array key).
@@ -93,7 +96,15 @@ SIDECAR_GT = {
     'voc2012segml_nc': ('voc2012segml_nc_patch_gt.npz', 'patch_seg'),
     'voc2012segml_g8': ('voc2012segml_g8_patch_gt.npz', 'patch_seg'),
     'voc2012segml_crop': ('voc2012segml_crop_patch_gt.npz', 'patch_seg'),
+    'coco2017val_g8': ('coco2017val_g8_patch_gt.npz', 'patch_seg'),
 }
+
+# Side-car datasets that live outside the VOC data directory.
+# $COCO_PATCH_DIR, else ~/data/coco_patch, else the repository's data/coco_patch
+COCO_PATCH_DIR = os.environ.get('COCO_PATCH_DIR') or next(
+    (d for d in (os.path.expanduser('~/data/coco_patch'), 'data/coco_patch')
+     if os.path.isdir(d)), os.path.expanduser('~/data/coco_patch'))
+SIDECAR_DIR = {'coco2017val_g8': COCO_PATCH_DIR}
 
 # DMKD revision VOC protocol: one batch size for every method (v1 used 4, with
 # AB-MIL on VOC-Patch-Seg at 8). Applies only to the revision datasets.
@@ -104,10 +115,11 @@ def _voc_seg_config(name='voc2012seg'):
     """Config for a pixel-exact VOC subset, mirroring _voc_config()."""
     from run_voc_experiment import _voc_config
     from datasets.voc_miml import DEFAULT_OUT_DIR
+    ddir = SIDECAR_DIR.get(name, DEFAULT_OUT_DIR)
     c = dict(_voc_config())
     c.update({
-        'data_path': os.path.join(DEFAULT_OUT_DIR, f'{name}.mat'),
-        'cv_mat_path': os.path.join(DEFAULT_OUT_DIR, f'{name}_10CV.mat'),
+        'data_path': os.path.join(ddir, f'{name}.mat'),
+        'cv_mat_path': os.path.join(ddir, f'{name}_10CV.mat'),
         'dataset': name,
         # Smaller batches: the 2048-dim features plus run_fold()'s per-fold
         # deepcopy make this the peak-memory dataset in the suite.
@@ -120,7 +132,8 @@ def _load_sidecar_gt(dataset):
     """(n_bags, N, L) bool instance labels for a side-car dataset."""
     from datasets.voc_miml import DEFAULT_OUT_DIR
     fname, key = SIDECAR_GT[dataset]
-    z = np.load(os.path.join(DEFAULT_OUT_DIR, fname), allow_pickle=True)
+    ddir = SIDECAR_DIR.get(dataset, DEFAULT_OUT_DIR)
+    z = np.load(os.path.join(ddir, fname), allow_pickle=True)
     return z[key].astype(bool)
 
 INSTANCE_METRIC_KEYS = [

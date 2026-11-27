@@ -1,9 +1,9 @@
 # Verification report: release v1.1
 
-Generated 2026-11-26 08:33 by `python3 analysis/verify_paper_claims_r1.py` (126 checks).
-The reported numbers are re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU), the generated analysis files in `paper_attribution/tables/` and the VOC-Patch ground truth; the run exits non-zero if any check fails. All pairwise tests are two-sided (fold-level Nadeau-Bengio corrected resampled t-test, Holm per benchmark).
+Generated 2026-11-27 12:45 by `python3 analysis/verify_paper_claims_r1.py` (145 checks).
+The reported numbers are re-derived from `results/instance_level_r1/` (80 cells, 2,480 trained models, all CPU), `results/instance_level_r1_coco/` (COCO-Patch-ML: 8 cells, 80 models, CPU), the generated analysis files in `paper_attribution/tables/` and the VOC-Patch and COCO-Patch-ML ground truth; the run exits non-zero if any check fails. All pairwise tests are two-sided (fold-level Nadeau-Bengio corrected resampled t-test, Holm per benchmark).
 
-\`\`\`
+```
 Verifying the revised manuscript against results/instance_level_r1 
 
   PASS  [setup       ] classical cells complete: 8 archs x 4 x 35 models              1120
@@ -130,8 +130,27 @@ Verifying the revised manuscript against results/instance_level_r1
   PASS  [imbalance   ] (AP-pi)/(1-pi): tail lower 48/48, significant 26/32 classical (all on LF, LC, MSRC), 0 VOC 
   PASS  [imbalance   ] Micro-Macro over labels with a positive: 3.1..15.3; F1 tail lower 48/48 
   PASS  [imbalance   ] attribution reversals: DSMIL-sep (head margin +3.4) and Gated AB-MIL on VOC-Seg ['dsmil__voc2012seg_nc', 'gated_attn__voc2012seg_nc']
+  PASS  [coco        ] 8 cells x 10 models (folds 0..9), batch 8, VOC widths, CPU, no NaN []
+  PASS  [coco        ] Theorem 1: every label-agnostic model P@1 <= its ceiling       []
+  PASS  [coco        ] 3,766 bags, 80 labels, 64 patches, 3.3 labels/bag (2..13), 12.1 witnesses, all pairs witnessed 
+  PASS  [coco        ] disjoint witness sets 13.6%; chance 18.5, ceiling 65.2 (fold avg); Gamma_AUC 0.877 
+  PASS  [coco        ] label-agnostic P@1 30.7..32.9, margins +12.3..+14.4, > 30 below ceiling 
+  PASS  [coco        ] ML-Dec 57.6 (+39.1), Q2L 57.2 (+38.8), DSMIL 43.4, HAP 41.2, DSMIL-sep 20.0 (+1.5) 
+  PASS  [coco        ] each of DSMIL/ML-Dec/Q2L/HAP > each label-agnostic: 10/10 folds, sig., 8.3..26.9 
+  PASS  [coco        ] DSMIL-sep significantly below every label-agnostic architecture 
+  PASS  [coco        ] Holm over 28 pairs                                             
+  PASS  [coco        ] deletion per-pair: label-agnostic 0.47..0.48; ML-Dec 0.61, Q2L 0.63, DSMIL 0.71; ML-Dec 0.47 vs 0.03 
+  PASS  [coco        ] additive P@1 AB-MIL 55.7, gated 53.7, within 4 points of ML-Dec and Q2L 
+  PASS  [coco        ] bag AP 0.648..0.701, 12/28 significant, top three ML-Dec/Q2L/HAP; P@1 20.0..57.6 
+  PASS  [coco        ] pooled AUC: agnostic .553..640; ML-Dec/Q2L/HAP .635..679, none sig.; DSMIL .507, DSMIL-sep .420 lowest 
+  PASS  [coco        ] AUC per fold: AB-MIL, gated 7 folds 0.48..0.57, 3 folds 0.68..0.72; TransMIL 0.61..0.66; diff to ML-Dec 0.10..0.13 
+  PASS  [coco        ] AUC: DSMIL, DSMIL-sep sig. below TransMIL (0.132, 0.219), ML-Dec, Q2L, HAP 
+  PASS  [coco        ] 12,466 present pairs, 70 all-witness (not scorable); deletion HAP 0.51, DSMIL-sep 0.53 
+  PASS  [coco        ] ML-Dec, Q2L margins 4..5 below VOC 8x8 (+44.2, +43.0); AB-MIL +13.4 there 
+  PASS  [coco        ] models: 2,480 + 80 COCO = 2,560                                
+  PASS  [coco        ] patch labels = overlap >= 0.05 (float16 store); bag labels = OR of patch labels; >= 2 labels per bag 
   PASS  [benchmarks  ] voc2012seg: no-crop file keeps labels and patch GT             
   PASS  [benchmarks  ] voc2012segml: no-crop file keeps labels and patch GT           
 
 all checks passed
-\`\`\`
+```

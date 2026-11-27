@@ -736,6 +736,109 @@ check('imbalance', 'attribution reversals: DSMIL-sep (head margin +3.4) and Gate
 if PAPER:
     check('imbalance', 'tab:imbalance in the manuscript', '\\input{tables/imbalance}' in open('paper_attribution/main.tex').read())
 
+
+# ---- R1.4c: COCO-Patch-ML 8x8 (analysis/coco_patch_summary.py, subsec:coco) ------
+_RC = 'results/instance_level_r1_coco'
+_CC = {}
+for _f in glob.glob(os.path.join(_RC, '*__coco2017val_g8.json')):
+    _d = json.load(open(_f))
+    _CC[_d['method']] = _d
+_CO = json.load(open(os.path.join(T, 'coco_patch.json')))
+_CX = json.load(open(os.path.join(T, 'coco_extras.json')))['cells']
+_PM, _RG = _CO['per_method'], _CO['regime']
+_LC4 = ['dsmil_orig', 'ml_decoder', 'q2l', 'hap_only']
+
+
+def _cp(m, k='InstP@1'):
+    return r1(100 * _PM[m][k][0])
+
+
+def _ct(key, a, b):
+    for r in _CO[key]:
+        if {r['a'], r['b']} == {a, b}:
+            return r
+
+
+_bad = [m for m in MAIN if m not in _CC or sorted(r['fold'] for r in _CC[m]['instance_per_model']) != list(range(10))
+        or _CC[m]['config'].get('batch_size') != 8 or _CC[m]['config'].get('embed_dim') != 128
+        or not str(_CC[m].get('device', '')).startswith('cpu')
+        or any(isinstance(v, float) and v != v for r in _CC[m]['instance_per_model'] for v in r.values())]
+check('coco', '8 cells x 10 models (folds 0..9), batch 8, VOC widths, CPU, no NaN', not _bad, _bad)
+_viol = [(m, r['fold']) for m in AG for r in _CC[m]['instance_per_model'] if r['InstP@1'] > r['LabelAgnosticCeiling'] + 1e-12]
+check('coco', 'Theorem 1: every label-agnostic model P@1 <= its ceiling', not _viol, _viol)
+check('coco', '3,766 bags, 80 labels, 64 patches, 3.3 labels/bag (2..13), 12.1 witnesses, all pairs witnessed',
+      (_RG['bags'], _RG['labels'], _RG['patches_per_bag'], r1(_RG['labels_per_bag']), _RG['min_labels_per_bag'],
+       _RG['max_labels_per_bag'], r1(_RG['witnesses_per_pair_mean']), _RG['pairs_without_witness'])
+      == (3766, 80, 64, 3.3, 2, 13, 12.1, 0))
+check('coco', 'disjoint witness sets 13.6%; chance 18.5, ceiling 65.2 (fold avg); Gamma_AUC 0.877',
+      r1(100 * _RG['share_bags_disjoint_witnesses']) == 13.6 and _cp('attnmil', 'ChanceP@1') == 18.5
+      and _cp('attnmil', 'LabelAgnosticCeiling') == 65.2 and round(_RG['dataset_gamma_auc'][1], 3) == 0.877)
+check('coco', 'label-agnostic P@1 30.7..32.9, margins +12.3..+14.4, > 30 below ceiling',
+      [min(_cp(m) for m in AG), max(_cp(m) for m in AG)] == [30.7, 32.9]
+      and [min(_cp(m, 'margin') for m in AG), max(_cp(m, 'margin') for m in AG)] == [12.3, 14.4]
+      and all(_PM[m]['LabelAgnosticCeiling'][0] - _PM[m]['InstP@1'][0] > 0.30 for m in AG))
+check('coco', 'ML-Dec 57.6 (+39.1), Q2L 57.2 (+38.8), DSMIL 43.4, HAP 41.2, DSMIL-sep 20.0 (+1.5)',
+      (_cp('ml_decoder'), _cp('ml_decoder', 'margin'), _cp('q2l'), _cp('q2l', 'margin'), _cp('dsmil_orig'),
+       _cp('hap_only'), _cp('dsmil'), _cp('dsmil', 'margin')) == (57.6, 39.1, 57.2, 38.8, 43.4, 41.2, 20.0, 1.5))
+_x = [_ct('tests_P1', a, b) for a in _LC4 for b in AG]
+_dd = [abs(100 * r['mean_diff']) for r in _x]
+check('coco', 'each of DSMIL/ML-Dec/Q2L/HAP > each label-agnostic: 10/10 folds, sig., 8.3..26.9',
+      all(r['significant'] and r['folds_same_sign'] == 10 for r in _x)
+      and all((r['mean_diff'] > 0) == (r['a'] in _LC4) for r in _x) and [r1(min(_dd)), r1(max(_dd))] == [8.3, 26.9])
+check('coco', 'DSMIL-sep significantly below every label-agnostic architecture',
+      all(_ct('tests_P1', 'dsmil', m)['significant'] and _PM['dsmil']['InstP@1'][0] < _PM[m]['InstP@1'][0] for m in AG))
+check('coco', 'Holm over 28 pairs', len(_CO['tests_P1']) == len(_CO['tests_AUC']) == len(_CO['tests_BagAP']) == 28)
+_ds = {m: _CX[f'{m}__coco2017val_g8'] for m in MAIN}
+check('coco', 'deletion per-pair: label-agnostic 0.47..0.48; ML-Dec 0.61, Q2L 0.63, DSMIL 0.71; ML-Dec 0.47 vs 0.03',
+      [r1(min(_ds[m]['del_selective_present'] for m in AG), 2), r1(max(_ds[m]['del_selective_present'] for m in AG), 2)] == [0.47, 0.48]
+      and [r1(_ds[m]['del_selective_present'], 2) for m in ('ml_decoder', 'q2l', 'dsmil_orig')] == [0.61, 0.63, 0.71]
+      and (r1(_ds['ml_decoder']['del_self_present'], 2), r1(_ds['ml_decoder']['del_other_present'], 2)) == (0.47, 0.03))
+check('coco', 'additive P@1 AB-MIL 55.7, gated 53.7, within 4 points of ML-Dec and Q2L',
+      (_cp('attnmil', 'AddP@1'), _cp('gated_attn', 'AddP@1')) == (55.7, 53.7)
+      and max(_PM[c]['InstP@1'][0] for c in ('ml_decoder', 'q2l')) - min(_PM[a]['AddP@1'][0] for a in ('attnmil', 'gated_attn')) < 0.04)
+_ap = {m: _PM[m]['BagAveragePrecision'][0] for m in MAIN}
+check('coco', 'bag AP 0.648..0.701, 12/28 significant, top three ML-Dec/Q2L/HAP; P@1 20.0..57.6',
+      [round(min(_ap.values()), 3), round(max(_ap.values()), 3)] == [0.648, 0.701]
+      and sum(r['significant'] for r in _CO['tests_BagAP']) == 12
+      and set(sorted(_ap, key=_ap.get)[-3:]) == {'ml_decoder', 'q2l', 'hap_only'}
+      and [min(_cp(m) for m in MAIN), max(_cp(m) for m in MAIN)] == [20.0, 57.6])
+_au = {m: round(_PM[m]['InstAUCPooled'][0], 3) for m in MAIN}
+check('coco', 'pooled AUC: agnostic .553..640; ML-Dec/Q2L/HAP .635..679, none sig.; DSMIL .507, DSMIL-sep .420 lowest',
+      [min(_au[m] for m in AG), max(_au[m] for m in AG)] == [0.553, 0.640]
+      and [min(_au[m] for m in ('ml_decoder', 'q2l', 'hap_only')), max(_au[m] for m in ('ml_decoder', 'q2l', 'hap_only'))] == [0.635, 0.679]
+      and not any(_ct('tests_AUC', a, b)['significant'] for a in AG for b in ('ml_decoder', 'q2l', 'hap_only'))
+      and (_au['dsmil_orig'], _au['dsmil']) == (0.507, 0.420) and sorted(_au, key=_au.get)[:2] == ['dsmil', 'dsmil_orig'])
+_fa = {m: [r['InstAUCPooled'] for r in _CC[m]['instance_per_model']] for m in ('attnmil', 'gated_attn', 'transmil_lite')}
+_lo = [x for m in ('attnmil', 'gated_attn') for x in _fa[m] if x < 0.6]
+_hi = [x for m in ('attnmil', 'gated_attn') for x in _fa[m] if x >= 0.6]
+check('coco', 'AUC per fold: AB-MIL, gated 7 folds 0.48..0.57, 3 folds 0.68..0.72; TransMIL 0.61..0.66; diff to ML-Dec 0.10..0.13',
+      all(sum(x < 0.6 for x in _fa[m]) == 7 for m in ('attnmil', 'gated_attn'))
+      and [round(min(_lo), 2), round(max(_lo), 2), round(min(_hi), 2), round(max(_hi), 2)] == [0.48, 0.57, 0.68, 0.72]
+      and [round(min(_fa['transmil_lite']), 2), round(max(_fa['transmil_lite']), 2)] == [0.61, 0.66]
+      and sorted(round(abs(_ct('tests_AUC', m, 'ml_decoder')['mean_diff']), 2) for m in ('attnmil', 'gated_attn')) == [0.1, 0.13])
+check('coco', 'AUC: DSMIL, DSMIL-sep sig. below TransMIL (0.132, 0.219), ML-Dec, Q2L, HAP',
+      all(_ct('tests_AUC', d, m)['significant'] for d in ('dsmil_orig', 'dsmil') for m in ('transmil_lite', 'ml_decoder', 'q2l', 'hap_only'))
+      and [round(abs(_ct('tests_AUC', 'transmil_lite', d)['mean_diff']), 3) for d in ('dsmil_orig', 'dsmil')] == [0.132, 0.219])
+check('coco', '12,466 present pairs, 70 all-witness (not scorable); deletion HAP 0.51, DSMIL-sep 0.53',
+      _RG['pairs_all_patches_witness'] == 70 and int(round(_RG['labels_per_bag'] * _RG['bags'])) == 12466
+      and (r1(_ds['hap_only']['del_selective_present'], 2), r1(_ds['dsmil']['del_selective_present'], 2)) == (0.51, 0.53))
+check('coco', 'ML-Dec, Q2L margins 4..5 below VOC 8x8 (+44.2, +43.0); AB-MIL +13.4 there',
+      all(4 <= delta(m, 'voc2012segml_g8') - 100 * _PM[m]['margin'][0] <= 5.2 for m in ('ml_decoder', 'q2l'))
+      and (r1(delta('ml_decoder', 'voc2012segml_g8')), r1(delta('q2l', 'voc2012segml_g8')), r1(delta('attnmil', 'voc2012segml_g8'))) == (44.2, 43.0, 13.4))
+check('coco', 'models: 2,480 + 80 COCO = 2,560', sum(len(c['instance_per_model']) for c in CELLS.values())
+      + sum(len(c['instance_per_model']) for c in _CC.values()) == 2560)
+_GTP = next((p for p in [os.path.join(d, 'coco2017val_g8_patch_gt.npz') for d in
+             (os.environ.get('COCO_PATCH_DIR', ''), os.path.expanduser('~/data/coco_patch'), 'data/coco_patch') if d]
+             if os.path.exists(p)), '')
+if os.path.exists(_GTP):
+    _z = np.load(_GTP)
+    _ps, _bl = _z['patch_seg'], _z['bag_labels']
+    check('coco', 'patch labels = overlap >= 0.05 (float16 store); bag labels = OR of patch labels; >= 2 labels per bag',
+          np.array_equal(_ps, _z['overlap_frac'] >= np.float16(0.05)) and np.array_equal(_bl, _ps.any(1))
+          and int(_bl.sum(1).min()) >= 2 and int(_z['grid']) == 8)
+if PAPER:
+    check('coco', 'tab:coco in the manuscript', '\\input{tables/coco_patch}' in open('paper_attribution/sections/analysis.tex').read())
+
 # ---- data provenance -------------------------------------------------------------
 try:
     from scipy.io import loadmat

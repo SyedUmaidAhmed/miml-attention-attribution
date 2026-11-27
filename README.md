@@ -20,14 +20,16 @@ the submitted version, kept for the record.
 |---|---|
 | `miml_clam/` | Model package, including **hybrid attention pooling (HAP)** and `metrics/instance_metrics.py`: the attribution protocol (P@k, chance rate, attribution AUC, pooled AUC, the label-agnostic ceiling and the pooled-AUC bounds). |
 | `baselines/` | AB-MIL, Gated AB-MIL, TransMIL (lite), DSMIL in its original form (`dsmil_orig.py`: one query network shared with the critical instance), DSMIL-sep (`dsmil.py`: separate query and key projections), ML-Decoder, Q2L; one forward contract, each exposing the attention tensor it pools with. |
-| `datasets/` | VOC-Patch construction. `build_voc_patch_r1.py` builds the revision's feature files (whole patch resized to 224×224, no centre crop; 4×4 and 8×8 grids; per-patch overlap fractions). Older builders and the HJA Bird Song conversion are kept. |
+| `datasets/` | VOC-Patch construction. `build_voc_patch_r1.py` builds the revision's feature files (whole patch resized to 224×224, no centre crop; 4×4 and 8×8 grids; per-patch overlap fractions). `build_coco_patch.py` builds COCO-Patch-ML (8×8 grid of COCO 2017 val, same construction). Older builders and the HJA Bird Song conversion are kept. |
 | `run_instance_attribution.py` | Trains each (architecture, benchmark) cell and, on the same trained models, scores attribution, the additive read-out of linear-head models, a deletion test, and per-model bag metrics; saves per-model arrays. |
 | `gpu_run_pack/cell_queue.py` | Restart-safe parallel queue of cells (one process per cell). |
 | `results/instance_level_r1/` | The 80 cells of the revision (2,480 trained models, all on CPU): 8 architectures × 6 benchmarks, the HAP ablation rows, the 8×8 grid and the cropped-feature variant of VOC-Patch-Seg-ML. |
+| `results/instance_level_r1_coco/` | COCO-Patch-ML: 8 architectures × 10 folds, one model per fold (80 models, CPU). |
 | `results/instance_level_r1_colabA/` | Six VOC-Patch-Seg cells retrained on a CUDA GPU as a reproduction check; not used in any result. |
 | `results/instance_level/` | The 42 cells of the submitted version (v1.0). |
 | `analysis/` | Generators for every table and figure, `attribution_stats.py` (fold-level corrected resampled t-test, Holm), `attribution_extras.py` (post-hoc analyses that re-score every saved model), and the verifiers. |
 | `data/MIML-SELFVIT/` | The four classical benchmarks, and for VOC-Patch the fold permutations and patch labels with overlap fractions. Feature files are release assets. |
+| `data/coco_patch/` | COCO-Patch-ML fold permutation and mask-derived patch labels with overlap fractions; the features are rebuilt from the COCO images. |
 | `paper_attribution/tables/` | Generated analysis outputs (JSON) that the verifier reads; the generators also write their tables and figures under `paper_attribution/`. |
 
 ## Setup
@@ -52,12 +54,22 @@ feature files from the releases into `data/MIML-SELFVIT/`:
 | `voc2012segml.mat` | v1.0 | 87 MB | cropped features (`voc2012segml_crop*` are symlinks to it) |
 | `voc2012seg.mat` | v1.0 | 298 MB | cropped features (checked by the verifier) |
 | `instance_level_r1_arrays.zip` | v1.1 | 239 MB | per-model attention, deletion and prediction arrays; unzip into `results/instance_level_r1/arrays/` |
+| `instance_level_r1_coco_arrays.zip` | v1.1 | 460 MB | the same arrays for COCO-Patch-ML; unzip in `results/instance_level_r1_coco/` (it holds `arrays/`) |
 
 The arrays are needed only by `analysis/attribution_extras.py` (miss
 decomposition, multi-label subsets, τ sweep, deletion against present labels);
 everything else reads the JSON files. To rebuild the feature files from
 PASCAL VOC 2012 instead: `python3 -m datasets.build_voc_patch_r1 --grid 4` and
 `--grid 8 --subset segml` (needs the VOC 2012 images; see the docstring). Set `MIML_DATA_DIR` to use a data directory elsewhere.
+
+COCO-Patch-ML features are not distributed, because the COCO images carry their
+own (Flickr) terms. Rebuild them from COCO 2017 val (images and
+`instances_val2017.json`; `pip install pycocotools`) with
+`python3 -m datasets.build_coco_patch --coco-root <coco dir> --out-dir <dir>`
+(about 8 hours on a laptop CPU) and set `COCO_PATCH_DIR=<dir>` before
+training. The builder also writes the fold permutation (fixed seed) and the
+patch labels, which are the files shipped in `data/coco_patch/`; the summary and
+the verifier fall back to that folder when `COCO_PATCH_DIR` is unset.
 
 ## Reproducing the results
 
@@ -74,6 +86,8 @@ python3 analysis/make_revision_tables.py --outdir $T
 python3 analysis/make_setup_tables.py --rev r1 --stats $T/attribution_stats_r1.json --outdir $T
 python3 analysis/make_attribution_figures.py --rev r1 --outdir paper_attribution/figures
 python3 analysis/make_overview_figure.py --rev r1 --outdir paper_attribution/figures
+PYTHONPATH=analysis python3 analysis/coco_patch_summary.py --outdir $T     # COCO-Patch-ML
+python3 analysis/attribution_extras.py --results results/instance_level_r1_coco --out $T/coco_extras.json   # needs the COCO arrays
 python3 analysis/verify_paper_claims_r1.py        # must print "all checks passed"
 ```
 
@@ -89,6 +103,11 @@ python3 run_instance_attribution.py --methods $M --datasets voc2012seg_nc,voc201
 python3 run_instance_attribution.py --methods $M --datasets voc2012segml_g8 --no-ensemble --device cpu --outdir results/instance_level_r1
 # several cells in parallel
 python3 gpu_run_pack/cell_queue.py --methods $M --datasets voc2012seg_nc --outdir results/instance_level_r1 --workers 3 --threads 2
+```
+
+```bash
+# COCO-Patch-ML (after building its features): 10 folds, one model per fold
+python3 gpu_run_pack/cell_queue.py --methods $M --datasets coco2017val_g8 --folds 10 --no-ensemble --outdir results/instance_level_r1_coco --workers 3 --threads 4
 ```
 
 HAP ablation rows: `hap_soft_only`, `hap_hard_only`, `hap_k1`, `hap_k5`.
@@ -115,4 +134,5 @@ exceed.
 
 MIT. The datasets in `data/` retain the terms of their original distributors
 (MSRC v2: Microsoft Research; Letter Frost / Letter Carroll: as distributed with
-the MIML literature; VOC-Patch is derived from PASCAL VOC 2012).
+the MIML literature; VOC-Patch is derived from PASCAL VOC 2012; the COCO-Patch-ML patch labels are
+derived from the COCO 2017 annotations, CC BY 4.0, COCO Consortium).
